@@ -15,6 +15,7 @@ namespace SpellResearchSynthesizer
         public LevelSettings Master = new();
         public bool IgnoreDiscoverable = false;
         public bool RemoveStartingSpells = false;
+        public bool GenerateFLMIni = true;
         public List<string> jsonNames = new();
         public List<string> jsonPaths = new();
         public List<string> pscnames = new();

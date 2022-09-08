@@ -277,6 +277,119 @@ namespace SpellResearchSynthesizer
                     Console.WriteLine(ex.Message, ex.StackTrace);
                 }
             }
+            if (settings.Value.GenerateFLMIni)
+            {
+                Console.WriteLine("Generating FLM .ini...");
+                FormListContainer flmLists = new FormListContainer();
+                foreach ((List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts) in cleanedOutput.Mods.Values)
+                {
+                    foreach (SpellInfo spell in NewSpells)
+                    {
+                        if (spell.SpellForm == null) throw new Exception("Form ID error");
+                        string spellFID = $"0x{spell.SpellForm.FormKey.ID:X6}~{spell.SpellESP}";
+                        string flAllSpellsTier = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["allSpells"]?.ToString());
+                        flmLists.Add(flAllSpellsTier, spellFID);
+                        string flSchool = FormatFormID(researchDataLists["spellSchools"]?[spell.School]?.ToString());
+                        flmLists.Add(flSchool, spellFID);
+                        string flCastingType = FormatFormID(researchDataLists["spellCastingTypes"]?[spell.CastingType]?.ToString());
+                        foreach (AliasedArchetype targeting in spell.Targeting)
+                        {
+                            string flTargeting = FormatFormID(researchDataLists["spellTargeting"]?[targeting.Name]?.ToString());
+                            flmLists.Add(flTargeting, spellFID);
+                        }
+                        foreach (AliasedArchetype element in spell.Elements)
+                        {
+                            string flElement = FormatFormID(researchDataLists["spellElements"]?[element.Name]?.ToString());
+                            flmLists.Add(flElement, spellFID);
+                        }
+                        foreach (AliasedArchetype technique in spell.Techniques)
+                        {
+                            string flTechnique = FormatFormID(researchDataLists["spellTechniques"]?[technique.Name]?.ToString());
+                            flmLists.Add(flTechnique, spellFID);
+                        }
+                        if (spell.ScrollForm != null)
+                        {
+                            string scrollFID = $"0x{spell.ScrollForm.FormKey.ID:X6}~{spell.ScrollESP}";
+                            string flScrolls = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["scrolls"]?.ToString());
+                            flmLists.Add(flScrolls, scrollFID);
+                            string flScrollSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["scrollSpells"]?.ToString());
+                            flmLists.Add(flScrollSpells, spellFID);
+                        }
+                        if (spell.TomeForm != null)
+                        {
+                            string tomeFID = $"0x{spell.TomeForm.FormKey.ID:X6}~{spell.TomeESP}";
+                            string flTomes = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["tomes"]?.ToString());
+                            flmLists.Add(flTomes, tomeFID);
+                            string flTomeSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["tomeSpells"]?.ToString());
+                            flmLists.Add(flTomeSpells, spellFID);
+                        }
+                        if (!spell.Enabled)
+                        {
+                            string flUndiscoverable = FormatFormID(researchDataLists["other"]?["undiscoverable"]?.ToString());
+                            flmLists.Add(flUndiscoverable, spellFID);
+                        }
+                    }
+                    foreach (ArtifactInfo artifact in NewArtifacts)
+                    {
+                        string artifactFID = FormatFormID(artifact.ArtifactID);
+                        string flTier = FormatFormID(researchDataLists["artifactTiers"]?[artifact.Tier.ToString()]?.ToString());
+                        flmLists.Add(flTier, artifactFID);
+                        foreach (string school in artifact.Schools)
+                        {
+                            string flSchool = FormatFormID(researchDataLists["artifactSchools"]?[school]?.ToString());
+                            flmLists.Add(flSchool, artifactFID);
+                        }
+                        foreach (string casting in artifact.CastingTypes)
+                        {
+                            string flCastingType = FormatFormID(researchDataLists["artifactCastingTypes"]?[casting]?.ToString());
+                            flmLists.Add(flCastingType, artifactFID);
+                        }
+                        foreach (AliasedArchetype targeting in artifact.Targeting)
+                        {
+                            string flTargeting = FormatFormID(researchDataLists["artifactTargeting"]?[targeting]?.ToString());
+                            flmLists.Add(flTargeting, artifactFID);
+                        }
+                        foreach (AliasedArchetype element in artifact.Elements)
+                        {
+                            string flElement = FormatFormID(researchDataLists["artifactElements"]?[element.Name]?.ToString());
+                            flmLists.Add(flElement, artifactFID);
+                        }
+                        foreach (AliasedArchetype technique in artifact.Techniques)
+                        {
+                            string flTechnique = FormatFormID(researchDataLists["artifactTechniques"]?[technique.Name]?.ToString());
+                            flmLists.Add(flTechnique, artifactFID);
+                        }
+                        if (artifact.Equippable)
+                        {
+                            string flEquippableAll = FormatFormID(researchDataLists["artifactOther"]?["equippableAll"]?.ToString());
+                            flmLists.Add(flEquippableAll, artifactFID);
+                        }
+                        if (artifact.EquippableArtifact)
+                        {
+                            string flEquppableArtifact = FormatFormID(researchDataLists["artifactOther"]?["equippableArtifacts"]?.ToString());
+                            flmLists.Add(flEquppableArtifact, artifactFID);
+                        }
+                        if (artifact.EquippableText)
+                        {
+                            string flEquippableText = FormatFormID(researchDataLists["artifactOther"]?["equippableText"]?.ToString());
+                            flmLists.Add(flEquippableText, artifactFID);
+                        }
+                    }
+                }
+                List<string> flmOutput = new List<string>();
+                foreach (KeyValuePair<string, List<string>> fl in flmLists)
+                {
+                    flmOutput.Add($"ModEvent = SpellResearchSynthesizerFLMImport|{fl.Key}|{string.Join(',', fl.Value)}");
+                }
+                File.WriteAllLines(state.DataFolderPath + @"\SpellResearchSynthesizer_FLM.ini", flmOutput);
+                Console.WriteLine("FLM .ini generated succesfully");
+            }
+        }
+
+        protected static string FormatFormID(string? fid)
+        {
+            if (fid == null) throw new ArgumentException("Form ID is null");
+            return $"{fid.Split("|")[2]}~{fid.Split("|")[1]}";
         }
 
         private static ArchetypeList LoadArchetypes(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
