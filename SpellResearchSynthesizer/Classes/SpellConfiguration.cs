@@ -131,14 +131,15 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error: Casting type \"{castingType}\" not known");
                 return null;
             }
-            JArray? target = (JArray?)newSpell["targeting"];
+            JToken? target = newSpell["targeting"];
             if (target == null)
             {
                 Console.WriteLine("Targeting type list not found");
                 return null;
             }
             List<AliasedArchetype> foundTargets = new();
-            foreach (string? targetType in target.Select(v => v.ToString()))
+            JArray targetArr = target is JArray array ? array : new JArray { target.ToString() };
+            foreach (string? targetType in targetArr.Select(v => v.ToString()))
             {
                 if (string.IsNullOrEmpty(targetType))
                 {
@@ -460,7 +461,7 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error: Casting type \"{castingType}\" not known");
                 return null;
             }
-            JToken? target = (JToken?)newSpell["target"];
+            JToken? target = newSpell["target"];
             if (target == null)
             {
                 Console.WriteLine("Targeting type list not found");
