@@ -138,7 +138,7 @@ namespace SpellResearchSynthesizer.Classes
                 return null;
             }
             List<AliasedArchetype> foundTargets = new();
-            foreach (string? targetType in target)
+            foreach (string? targetType in target.Select(v => v.ToString()))
             {
                 if (string.IsNullOrEmpty(targetType))
                 {
@@ -157,7 +157,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundElements = new();
             if (elements != null)
             {
-                foreach (string? element in elements)
+                foreach (string? element in elements.Select(e => e.ToString()))
                 {
                     if (string.IsNullOrEmpty(element))
                     {
@@ -178,7 +178,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundTechniques = new();
             if (techniques != null)
             {
-                foreach (string? technique in techniques)
+                foreach (string? technique in techniques.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(technique))
                     {
@@ -270,7 +270,7 @@ namespace SpellResearchSynthesizer.Classes
             List<string> foundSchools = new();
             if (schools != null)
             {
-                foreach (string? school in schools)
+                foreach (string? school in schools.Select(s => s.ToString()))
                 {
                     if (string.IsNullOrEmpty(school))
                     {
@@ -290,7 +290,7 @@ namespace SpellResearchSynthesizer.Classes
             List<string> foundCastingTypes = new();
             if (castingTypes != null)
             {
-                foreach (string? castingType in castingTypes)
+                foreach (string? castingType in castingTypes.Select(ct => ct.ToString()))
                 {
                     if (string.IsNullOrEmpty(castingType))
                     {
@@ -310,7 +310,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundTargets = new();
             if (target != null)
             {
-                foreach (string? targetType in target)
+                foreach (string? targetType in target.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(targetType))
                     {
@@ -330,7 +330,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundElements = new();
             if (elements != null)
             {
-                foreach (string? element in elements)
+                foreach (string? element in elements.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(element))
                     {
@@ -351,7 +351,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundTechniques = new();
             if (techniques != null)
             {
-                foreach (string? technique in techniques)
+                foreach (string? technique in techniques.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(technique))
                     {
@@ -460,14 +460,15 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error: Casting type \"{castingType}\" not known");
                 return null;
             }
-            JArray? target = (JArray?)newSpell["target"];
+            JToken? target = (JToken?)newSpell["target"];
             if (target == null)
             {
                 Console.WriteLine("Targeting type list not found");
                 return null;
             }
             List<AliasedArchetype> foundTargets = new();
-            foreach (string? targetType in target)
+            JArray targetArr = target is JArray array ? array : new JArray { target.ToString() };
+            foreach (string? targetType in targetArr.Select(t => t.ToString()))
             {
                 if (string.IsNullOrEmpty(targetType))
                 {
@@ -486,7 +487,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundElements = new();
             if (elements != null)
             {
-                foreach (string? element in elements)
+                foreach (string? element in elements.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(element))
                     {
@@ -506,7 +507,7 @@ namespace SpellResearchSynthesizer.Classes
             List<AliasedArchetype> foundTechniques = new();
             if (techniques != null)
             {
-                foreach (string? technique in techniques)
+                foreach (string? technique in techniques.Select(t => t.ToString()))
                 {
                     if (string.IsNullOrEmpty(technique))
                     {
@@ -671,7 +672,7 @@ namespace SpellResearchSynthesizer.Classes
                 else if (line.Contains("TempScroll", StringComparison.OrdinalIgnoreCase) && line.Contains("GetFormFromFile", StringComparison.OrdinalIgnoreCase))
                 {
                     MatchCollection matches = rx.Matches(line);
-                    if (spellInfo == null) spellInfo = new();
+                    spellInfo ??= new();
                     string fid = matches.First().Groups["fid"].Value.Trim();
                     string esp = matches.First().Groups["esp"].Value.Trim();
                     spellInfo.ScrollID = string.Format("__formData|{0}|{1}", esp, fid);
@@ -689,7 +690,7 @@ namespace SpellResearchSynthesizer.Classes
                 else if (line.Contains("TempTome", StringComparison.OrdinalIgnoreCase) && line.Contains("GetFormFromFile", StringComparison.OrdinalIgnoreCase) && spellInfo != null)
                 {
                     MatchCollection matches = rx.Matches(line);
-                    if (spellInfo == null) spellInfo = new();
+                    spellInfo ??= new();
                     string fid = matches.First().Groups["fid"].Value.Trim();
                     string esp = matches.First().Groups["esp"].Value.Trim();
 
