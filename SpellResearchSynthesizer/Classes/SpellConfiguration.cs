@@ -1003,5 +1003,30 @@ namespace SpellResearchSynthesizer.Classes
                 return artifact;
             }
         }
+
+        internal bool Validate(out ValidationResults validationResults)
+        {
+            validationResults = new();
+            bool valid = true;
+            foreach (KeyValuePair<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> modRecord in Mods)
+            {
+                foreach (IGrouping<string, SpellInfo> g in modRecord.Value.NewSpells.GroupBy(s => $"{s.SpellESP}|0x{s.SpellFormID}").Where(g => !string.IsNullOrEmpty(g.Key) && g.Count() > 1))
+                {
+                    valid = false;
+                    validationResults.DuplicateSpells.Add(g.Key, g.Select(s => s.Name));
+                }
+                foreach (IGrouping<string?, SpellInfo> g in modRecord.Value.NewSpells.Where(s => s.TomeForm != null).GroupBy(s => $"{s.TomeESP}|0x{s.TomeFormID}").Where(g => !string.IsNullOrEmpty(g.Key) && g.Count() > 1))
+                {
+                    valid = false;
+                    validationResults.DuplicateTomes.Add(g.Key ?? "", g.Select(s => s.Name));
+                }
+                foreach (IGrouping<string?, SpellInfo> g in modRecord.Value.NewSpells.Where(s => s.ScrollForm != null).GroupBy(s => $"{s.ScrollESP}|0x{s.ScrollFormID}").Where(g => !string.IsNullOrEmpty(g.Key) && g.Count() > 1))
+                {
+                    valid = false;
+                    validationResults.DuplicateScrolls.Add(g.Key ?? "", g.Select(s => s.Name));
+                }
+            }
+            return valid;
+        }
     }
 }

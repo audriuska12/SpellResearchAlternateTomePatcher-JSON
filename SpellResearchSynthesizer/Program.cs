@@ -223,6 +223,7 @@ namespace SpellResearchSynthesizer
                         continue;
                     }
                     Console.WriteLine($"Importing {mod.Key.FileName} from {scriptFile}");
+                    (Noggog.FileName FileName, SpellConfiguration Spells)? patch = null;
                     if (scriptFile.EndsWith(".json"))
                     {
                         string jsonPath = Path.Combine(state.DataFolderPath, scriptFile);
@@ -232,7 +233,7 @@ namespace SpellResearchSynthesizer
                             continue;
                         }
                         string spellconf = File.ReadAllText(jsonPath);
-                        output.Add((mod.Key.FileName, SpellConfiguration.FromJson(state, spellconf, allowedArchetypes)));
+                        patch = (mod.Key.FileName, SpellConfiguration.FromJson(state, spellconf, allowedArchetypes));
                     }
                     else if (scriptFile.EndsWith(".psc"))
                     {
@@ -243,7 +244,23 @@ namespace SpellResearchSynthesizer
                             continue;
                         }
                         string spellconf = File.ReadAllText(pscPath);
-                        output.Add((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf, allowedArchetypes)));
+                        patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf, allowedArchetypes)));
+                    }
+                    if (patch != null)
+                    {
+                        if (!patch.Value.Spells.Validate(out ValidationResults validationResults))
+                        {
+                            PrintValidationResults(validationResults);
+                            if (settings.Value.StopOnInvalidPatch)
+                            {
+                                throw new ArgumentException("Terminating due to invalid patch!");
+                            }
+                        }
+                        output.Add(patch.Value);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Error creating patch!");
                     }
                 }
             }
@@ -280,7 +297,7 @@ namespace SpellResearchSynthesizer
             if (settings.Value.GenerateFLMIni)
             {
                 Console.WriteLine("Generating FLM .ini...");
-                FormListContainer flmLists = new FormListContainer();
+                FormListContainer flmLists = new();
                 foreach ((List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts) in cleanedOutput.Mods.Values)
                 {
                     foreach (SpellInfo spell in NewSpells)
@@ -376,13 +393,29 @@ namespace SpellResearchSynthesizer
                         }
                     }
                 }
-                List<string> flmOutput = new List<string>();
+                List<string> flmOutput = new();
                 foreach (KeyValuePair<string, List<string>> fl in flmLists)
                 {
                     flmOutput.Add($"ModEvent = SpellResearchSynthesizerFLMImport|{fl.Key}|{string.Join(',', fl.Value)}");
                 }
                 File.WriteAllLines(state.DataFolderPath + @"\SpellResearchSynthesizer_FLM.ini", flmOutput);
                 Console.WriteLine("FLM .ini generated succesfully");
+            }
+        }
+
+        private static void PrintValidationResults(ValidationResults validationResults)
+        {
+            foreach (KeyValuePair<string, IEnumerable<string>> spellDuplicate in validationResults.DuplicateSpells)
+            {
+                Console.WriteLine($"Duplicate spell ID: {spellDuplicate.Key} - {string.Join(", ", spellDuplicate.Value)}");
+            }
+            foreach (KeyValuePair<string, IEnumerable<string>> spellDuplicate in validationResults.DuplicateTomes)
+            {
+                Console.WriteLine($"Duplicate tome ID: {spellDuplicate.Key} - {string.Join(", ", spellDuplicate.Value)}");
+            }
+            foreach (KeyValuePair<string, IEnumerable<string>> spellDuplicate in validationResults.DuplicateScrolls)
+            {
+                Console.WriteLine($"Duplicate scroll ID: {spellDuplicate.Key} - {string.Join(", ", spellDuplicate.Value)}");
             }
         }
 

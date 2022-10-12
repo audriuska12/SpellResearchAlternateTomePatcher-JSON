@@ -16,6 +16,7 @@ namespace SpellResearchSynthesizer
         public bool IgnoreDiscoverable = false;
         public bool RemoveStartingSpells = false;
         public bool GenerateFLMIni = true;
+        public bool StopOnInvalidPatch = true;
         public List<string> jsonNames = new();
         public List<string> jsonPaths = new();
         public List<string> pscnames = new();
