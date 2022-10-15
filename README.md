@@ -4,7 +4,7 @@ Intended to support JSON files used by [Spell Research JSON Patch](https://www.n
 Current functionality:
 1. Reads the JSON file for the original JSON patch.
 2. Reads the JSON file for the Mysticism patch (as well as supporting a new field for added/removed artifacts/ingredients).
-3. Updates the tomes.
+3. Updates the tomes
 4. Skips tomes depending by level (for all my fellows who disable starting spells).
 5. Reads PSC files (tested with a few spell packs from the Spell Research Patch Compendium at [Spell Research Patch Compendium Redux](https://www.nexusmods.com/skyrimspecialedition/mods/61177).
 6. Detects and resolves spell/artifact overwrites (last mod in your LO wins).
@@ -14,7 +14,6 @@ Current functionality:
 
 Potential functionality (will be implemented if and only if I can be bothered - and figure out how):
 1. Automatically generate template files from your load order (that'd still require a great deal of manual untangling, but the hope would be that the user would no longer need to dig for FormID's, at least.
-2. Let the books grant you relevant Archetype XP (potentially with skill gating).
 
 # Updating
 If you used the patcher previously, your configuration files may be out of date. The only fix I know of is manually replacing them, or deleting them and re-adding the patcher.
@@ -36,6 +35,8 @@ If you used the patcher previously, your configuration files may be out of date.
   * Use Font Color: Whether to color the words for archetypes in the text. Hex colors, defined in config.json.
   * Use Image: Whether to illustrate the tome's first page according to the first archetype found.
     * Default setup (can be changed in config.json) comes from [Spell Research - Experience Book](https://www.nexusmods.com/skyrimspecialedition/mods/28355). Since I can't package them with my mod and the path in the .bsa is not supported by books, you'll need to manually extract them - the expected location for the .dds files is in "textures/interface/exported/widgets/spellresearchbook/textures/".
+  * Novice...Master Experience: How much XP for each of the spell's archetypes you receive on first reading the tome.
+  * Skill Required: Minimum skill level in spell's school you need to cause the above to happen.
 * Generate FLM Ini: ...Generates an FLM .ini file.
 * Json Names
   * Paths to JSON files for specific mods. These patches will take priority over all other patches. Supports JSON files formatted for [Spell Research Json Patch](https://www.nexusmods.com/skyrimspecialedition/mods/42381) or [Spell Research -JSON Mysticism Patch](https://www.nexusmods.com/skyrimspecialedition/mods/48515). Includes the Mysticism patch by default.
