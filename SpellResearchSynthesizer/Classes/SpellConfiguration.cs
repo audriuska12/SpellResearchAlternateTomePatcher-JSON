@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using static SpellResearchSynthesizer.Classes.Archetype;
 
 namespace SpellResearchSynthesizer.Classes
 {
@@ -14,25 +15,25 @@ namespace SpellResearchSynthesizer.Classes
     {
         public Dictionary<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> Mods = new();
 
-        public static SpellConfiguration FromJson(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf, ArchetypeList allowedArchetypes)
+        public static SpellConfiguration FromJson(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf)
         {
             SpellConfiguration config = new();
             if (spellconf.StartsWith("{"))
             {
                 JObject data = JObject.Parse(spellconf);
                 if (data == null) return config;
-                config = ParseMysticismFormat(state, data, allowedArchetypes);
+                config = ParseMysticismFormat(state, data);
             }
             else if (spellconf.StartsWith("["))
             {
                 JArray data = JArray.Parse(spellconf);
                 if (data == null) return config;
-                config = ParseJSONFormat(state, data, allowedArchetypes);
+                config = ParseJSONFormat(state, data);
             }
             return config;
         }
 
-        private static SpellConfiguration ParseMysticismFormat(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JObject data, ArchetypeList allowedArchetypes)
+        private static SpellConfiguration ParseMysticismFormat(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JObject data)
         {
             // Mysticism JSON Patch handling
             SpellConfiguration config = new();
@@ -41,7 +42,7 @@ namespace SpellResearchSynthesizer.Classes
             {
                 foreach (JToken newSpell in newSpells)
                 {
-                    SpellInfo? spell = ParseMysticismSpellEntry(state, newSpell, allowedArchetypes);
+                    SpellInfo? spell = ParseMysticismSpellEntry(state, newSpell);
                     if (spell == null) continue;
 
                     if (!config.Mods.ContainsKey(spell.SpellESP))
@@ -56,7 +57,7 @@ namespace SpellResearchSynthesizer.Classes
             {
                 foreach (JToken removedSpell in removedSpells)
                 {
-                    SpellInfo? spell = ParseMysticismSpellEntry(state, removedSpell, allowedArchetypes);
+                    SpellInfo? spell = ParseMysticismSpellEntry(state, removedSpell);
                     if (spell == null) continue;
 
                     if (!config.Mods.ContainsKey(spell.SpellESP))
@@ -71,7 +72,7 @@ namespace SpellResearchSynthesizer.Classes
             {
                 foreach (JToken newArtifact in newArtifacts)
                 {
-                    ArtifactInfo? artifact = ParseArtifactJSON(state, newArtifact, allowedArchetypes);
+                    ArtifactInfo? artifact = ParseArtifactJSON(state, newArtifact);
                     if (artifact == null) continue;
 
                     if (!config.Mods.ContainsKey(artifact.ArtifactESP))
@@ -84,8 +85,9 @@ namespace SpellResearchSynthesizer.Classes
             return config;
         }
 
-        private static SpellInfo? ParseMysticismSpellEntry(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newSpell, ArchetypeList allowedArchetypes)
+        private static SpellInfo? ParseMysticismSpellEntry(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newSpell)
         {
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
             string name = (string?)newSpell["name"] ?? string.Empty;
             if (name == string.Empty)
             {
@@ -98,37 +100,40 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error reading spell ID for {name}");
                 return null;
             }
-            string skill = (string?)newSpell["school"] ?? string.Empty;
-            if (skill == string.Empty)
+            string skillName = (string?)newSpell["school"] ?? string.Empty;
+            if (skillName == string.Empty)
             {
                 Console.WriteLine($"Error: Skill not found");
                 return null;
             }
-            if (!allowedArchetypes.Skills.Any(archetype => archetype.Name.ToLower() == skill.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == skill.ToLower())))
+            Archetype? skill = archetypes.GetArchetype(ArchetypeType.Skill, skillName);
+            if (skill == null)
             {
-                Console.WriteLine($"Error: Skill \"{skill}\" not known");
+                Console.WriteLine($"Error: Skill \"{skillName}\" not known");
                 return null;
             }
-            string level = (string?)newSpell["tier"] ?? string.Empty;
-            if (level == string.Empty)
+            string levelName = (string?)newSpell["tier"] ?? string.Empty;
+            if (levelName == string.Empty)
             {
                 Console.WriteLine($"Error: Spell level not found");
                 return null;
             }
-            if (!allowedArchetypes.Levels.Any(archetype => archetype.Name.ToLower() == level.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == level.ToLower())))
+            Archetype? level = archetypes.GetArchetype(ArchetypeType.Tier, levelName);
+            if (level == null)
             {
-                Console.WriteLine($"Error: Spell level \"{level}\" not known");
+                Console.WriteLine($"Error: Spell level \"{levelName}\" not known");
                 return null;
             }
-            string castingType = (string?)newSpell["castingType"] ?? string.Empty;
-            if (castingType == string.Empty)
+            string castingTypeName = (string?)newSpell["castingType"] ?? string.Empty;
+            if (castingTypeName == string.Empty)
             {
                 Console.WriteLine($"Error: Casting type not found");
                 return null;
             }
-            if (!allowedArchetypes.CastingTypes.Any(archetype => archetype.Name.ToLower() == castingType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == castingType.ToLower())))
+            Archetype? castingType = archetypes.GetArchetype(ArchetypeType.CastingType, castingTypeName);
+            if (castingType == null)
             {
-                Console.WriteLine($"Error: Casting type \"{castingType}\" not known");
+                Console.WriteLine($"Error: Casting type \"{castingTypeName}\" not known");
                 return null;
             }
             JToken? target = newSpell["targeting"];
@@ -137,7 +142,7 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine("Targeting type list not found");
                 return null;
             }
-            List<AliasedArchetype> foundTargets = new();
+            List<Archetype> foundTargets = new();
             JArray targetArr = target is JArray array ? array : new JArray { target.ToString() };
             foreach (string? targetType in targetArr.Select(v => v.ToString()))
             {
@@ -146,7 +151,7 @@ namespace SpellResearchSynthesizer.Classes
                     Console.WriteLine("Empty targeting type found in list");
                     return null;
                 }
-                AliasedArchetype? arch = allowedArchetypes.Targets.FirstOrDefault(archetype => archetype.Name.ToLower() == targetType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == targetType.ToLower()));
+                Archetype? arch = archetypes.GetArchetype(ArchetypeType.Targeting, targetType);
                 if (arch == null)
                 {
                     Console.WriteLine($"Targeting type {targetType} not known");
@@ -155,7 +160,7 @@ namespace SpellResearchSynthesizer.Classes
                 foundTargets.Add(arch);
             }
             JArray? elements = (JArray?)newSpell["elements"];
-            List<AliasedArchetype> foundElements = new();
+            List<Archetype> foundElements = new();
             if (elements != null)
             {
                 foreach (string? element in elements.Select(e => e.ToString()))
@@ -165,7 +170,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty element found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Elements.FirstOrDefault(archetype => archetype.Name.ToLower() == element.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == element.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Element, element);
                     if (arch == null)
                     {
                         Console.WriteLine($"Element {element} not known");
@@ -176,7 +181,7 @@ namespace SpellResearchSynthesizer.Classes
             }
 
             JArray? techniques = (JArray?)newSpell["techniques"];
-            List<AliasedArchetype> foundTechniques = new();
+            List<Archetype> foundTechniques = new();
             if (techniques != null)
             {
                 foreach (string? technique in techniques.Select(t => t.ToString()))
@@ -186,7 +191,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty technique found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Techniques.FirstOrDefault(archetype => archetype.Name.ToLower() == technique.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == technique.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Technique, technique);
                     if (arch == null)
                     {
                         Console.WriteLine($"Technique {technique} not known");
@@ -243,8 +248,9 @@ namespace SpellResearchSynthesizer.Classes
             }
             return spell;
         }
-        private static ArtifactInfo? ParseArtifactJSON(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newArtifact, ArchetypeList allowedArchetypes)
+        private static ArtifactInfo? ParseArtifactJSON(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newArtifact)
         {
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
             string name = (string?)newArtifact["name"] ?? string.Empty;
             if (name == string.Empty)
             {
@@ -263,52 +269,52 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error getting tier for {name}");
                 return null;
             }
-            if (!allowedArchetypes.ArtifactTiers.Contains((int)tier))
+            if (!archetypes.ArtifactTiers.Contains((int)tier))
             {
                 Console.WriteLine($"Tier {tier} not allowed");
             }
             JArray? schools = (JArray?)newArtifact["schools"];
-            List<string> foundSchools = new();
+            List<Archetype> foundSchools = new();
             if (schools != null)
             {
-                foreach (string? school in schools.Select(s => s.ToString()))
+                foreach (string? schoolName in schools.Select(s => s.ToString()))
                 {
-                    if (string.IsNullOrEmpty(school))
+                    if (string.IsNullOrEmpty(schoolName))
                     {
                         Console.WriteLine("Empty school found in list");
                         return null;
                     }
-                    string? res = allowedArchetypes.Skills.FirstOrDefault(archetype => archetype.Name.ToLower() == school.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == school.ToLower()))?.Name;
-                    if (res == null)
+                    Archetype? school = archetypes.GetArchetype(ArchetypeType.Skill, schoolName);
+                    if (school == null)
                     {
-                        Console.WriteLine($"School {res} not known");
+                        Console.WriteLine($"School {schoolName} not known");
                         return null;
                     }
                     foundSchools.Add(school);
                 }
             }
             JArray? castingTypes = (JArray?)newArtifact["castingTypes"];
-            List<string> foundCastingTypes = new();
+            List<Archetype> foundCastingTypes = new();
             if (castingTypes != null)
             {
-                foreach (string? castingType in castingTypes.Select(ct => ct.ToString()))
+                foreach (string? castingTypeName in castingTypes.Select(ct => ct.ToString()))
                 {
-                    if (string.IsNullOrEmpty(castingType))
+                    if (string.IsNullOrEmpty(castingTypeName))
                     {
                         Console.WriteLine("Empty casting type found in list");
                         return null;
                     }
-                    string? res = allowedArchetypes.CastingTypes.FirstOrDefault(archetype => archetype.Name.ToLower() == castingType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == castingType.ToLower()))?.Name;
-                    if (res == null)
+                    Archetype? castingType = archetypes.GetArchetype(ArchetypeType.CastingType, castingTypeName);
+                    if (castingType == null)
                     {
-                        Console.WriteLine($"Casting type {res} not known");
+                        Console.WriteLine($"Casting type {castingTypeName} not known");
                         return null;
                     }
-                    foundSchools.Add(res);
+                    foundSchools.Add(castingType);
                 }
             }
             JArray? target = (JArray?)newArtifact["targeting"];
-            List<AliasedArchetype> foundTargets = new();
+            List<Archetype> foundTargets = new();
             if (target != null)
             {
                 foreach (string? targetType in target.Select(t => t.ToString()))
@@ -318,7 +324,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty targeting type found in list");
                         return null;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Targets.FirstOrDefault(archetype => archetype.Name.ToLower() == targetType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == targetType.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Targeting, targetType);
                     if (arch == null)
                     {
                         Console.WriteLine($"Targeting type {targetType} not known");
@@ -328,7 +334,7 @@ namespace SpellResearchSynthesizer.Classes
                 }
             }
             JArray? elements = (JArray?)newArtifact["elements"];
-            List<AliasedArchetype> foundElements = new();
+            List<Archetype> foundElements = new();
             if (elements != null)
             {
                 foreach (string? element in elements.Select(t => t.ToString()))
@@ -338,7 +344,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty element found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Elements.FirstOrDefault(archetype => archetype.Name.ToLower() == element.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == element.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Element, element);
                     if (arch == null)
                     {
                         Console.WriteLine($"Element {element} not known");
@@ -349,7 +355,7 @@ namespace SpellResearchSynthesizer.Classes
             }
 
             JArray? techniques = (JArray?)newArtifact["techniques"];
-            List<AliasedArchetype> foundTechniques = new();
+            List<Archetype> foundTechniques = new();
             if (techniques != null)
             {
                 foreach (string? technique in techniques.Select(t => t.ToString()))
@@ -359,7 +365,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty technique found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Techniques.FirstOrDefault(archetype => archetype.Name.ToLower() == technique.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == technique.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Technique, technique);
                     if (arch == null)
                     {
                         Console.WriteLine($"Technique {technique} not known");
@@ -396,13 +402,13 @@ namespace SpellResearchSynthesizer.Classes
                 return artifact;
             }
         }
-        private static SpellConfiguration ParseJSONFormat(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JArray data, ArchetypeList allowedArchetypes)
+        private static SpellConfiguration ParseJSONFormat(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JArray data)
         {
             // Non-Mysticism JSON Patch handling
             SpellConfiguration config = new();
             foreach (JToken newSpell in data)
             {
-                SpellInfo? spell = ParseJSONSpellEntry(state, newSpell, allowedArchetypes);
+                SpellInfo? spell = ParseJSONSpellEntry(state, newSpell);
                 if (spell == null) continue;
                 if (!config.Mods.ContainsKey(spell.SpellESP))
                 {
@@ -413,9 +419,9 @@ namespace SpellResearchSynthesizer.Classes
             return config;
         }
 
-        private static SpellInfo? ParseJSONSpellEntry(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newSpell, ArchetypeList allowedArchetypes)
+        private static SpellInfo? ParseJSONSpellEntry(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newSpell)
         {
-
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
             string name = (string?)newSpell["comment"] ?? string.Empty;
             if (name == string.Empty)
             {
@@ -428,37 +434,40 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine($"Error reading spell ID for {name}");
                 return null;
             }
-            string skill = (string?)newSpell["skill"] ?? string.Empty;
-            if (skill == string.Empty)
+            string skillName = (string?)newSpell["skill"] ?? string.Empty;
+            if (skillName == string.Empty)
             {
                 Console.WriteLine($"Error: Skill not found");
                 return null;
             }
-            if (!allowedArchetypes.Skills.Any(archetype => archetype.Name.ToLower() == skill.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == skill.ToLower())))
+            Archetype? skill = archetypes.GetArchetype(ArchetypeType.Skill, skillName);
+            if (skill == null)
             {
-                Console.WriteLine($"Error: Skill \"{skill}\" not known");
+                Console.WriteLine($"Error: Skill \"{skillName}\" not known");
                 return null;
             }
-            string level = (string?)newSpell["level"] ?? string.Empty;
-            if (level == string.Empty)
+            string levelName = (string?)newSpell["level"] ?? string.Empty;
+            if (levelName == string.Empty)
             {
                 Console.WriteLine($"Error: Spell level not found");
                 return null;
             }
-            if (!allowedArchetypes.Levels.Any(archetype => archetype.Name.ToLower() == level.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == level.ToLower())))
+            Archetype? level = archetypes.GetArchetype(ArchetypeType.Tier, levelName);
+            if (level == null)
             {
-                Console.WriteLine($"Error: Spell level \"{level}\" not known");
+                Console.WriteLine($"Error: Spell level \"{levelName}\" not known");
                 return null;
             }
-            string castingType = (string?)newSpell["casting"] ?? string.Empty;
-            if (castingType == string.Empty)
+            string castingTypeName = (string?)newSpell["casting"] ?? string.Empty;
+            if (castingTypeName == string.Empty)
             {
                 Console.WriteLine($"Error: Casting type not found");
                 return null;
             }
-            if (!allowedArchetypes.CastingTypes.Any(archetype => archetype.Name.ToLower() == castingType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == castingType.ToLower())))
+            Archetype? castingType = archetypes.GetArchetype(ArchetypeType.CastingType, castingTypeName);
+            if (castingType == null)
             {
-                Console.WriteLine($"Error: Casting type \"{castingType}\" not known");
+                Console.WriteLine($"Error: Casting type \"{castingTypeName}\" not known");
                 return null;
             }
             JToken? target = newSpell["target"];
@@ -467,7 +476,7 @@ namespace SpellResearchSynthesizer.Classes
                 Console.WriteLine("Targeting type list not found");
                 return null;
             }
-            List<AliasedArchetype> foundTargets = new();
+            List<Archetype> foundTargets = new();
             JArray targetArr = target is JArray array ? array : new JArray { target.ToString() };
             foreach (string? targetType in targetArr.Select(t => t.ToString()))
             {
@@ -476,7 +485,7 @@ namespace SpellResearchSynthesizer.Classes
                     Console.WriteLine("Empty targeting type found in list");
                     continue;
                 }
-                AliasedArchetype? arch = allowedArchetypes.Targets.FirstOrDefault(archetype => archetype.Name.ToLower() == targetType.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == targetType.ToLower()));
+                Archetype? arch = archetypes.GetArchetype(ArchetypeType.Targeting, targetType);
                 if (arch == null)
                 {
                     Console.WriteLine($"Targeting type {targetType} not known");
@@ -485,7 +494,7 @@ namespace SpellResearchSynthesizer.Classes
                 foundTargets.Add(arch);
             }
             JArray? elements = (JArray?)newSpell["elements"];
-            List<AliasedArchetype> foundElements = new();
+            List<Archetype> foundElements = new();
             if (elements != null)
             {
                 foreach (string? element in elements.Select(t => t.ToString()))
@@ -495,7 +504,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty element found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Elements.FirstOrDefault(archetype => archetype.Name.ToLower() == element.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == element.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Element, element);
                     if (arch == null)
                     {
                         Console.WriteLine($"Element {element} not known");
@@ -505,7 +514,7 @@ namespace SpellResearchSynthesizer.Classes
                 }
             }
             JArray? techniques = (JArray?)newSpell["techniques"];
-            List<AliasedArchetype> foundTechniques = new();
+            List<Archetype> foundTechniques = new();
             if (techniques != null)
             {
                 foreach (string? technique in techniques.Select(t => t.ToString()))
@@ -515,7 +524,7 @@ namespace SpellResearchSynthesizer.Classes
                         Console.WriteLine("Empty technique found in list");
                         continue;
                     }
-                    AliasedArchetype? arch = allowedArchetypes.Techniques.FirstOrDefault(archetype => archetype.Name.ToLower() == technique.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == technique.ToLower()));
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Technique, technique);
                     if (arch == null)
                     {
                         Console.WriteLine($"Technique {technique} not known");
@@ -589,8 +598,9 @@ namespace SpellResearchSynthesizer.Classes
         private static readonly Regex rArtifactEquippableAll = new("^.*_SR_ListEquippableAll(?<equippable>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex rArtifactEquippableArtifact = new("^.*_SR_ListEquippableArtifacts(?<equippableArtifact>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex rArtifactEquippableText = new("^.*_SR_ListEquippableTexts(?<equippableText>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public static SpellConfiguration FromPsc(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf, ArchetypeList allowedArchetypes)
+        public static SpellConfiguration FromPsc(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf)
         {
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
             SpellConfiguration config = new();
             SpellInfo? spellInfo = null;
             ArtifactInfo? artifactInfo = null;
@@ -720,40 +730,40 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mSkill.Count > 0)
                     {
                         string match = mSkill.First().Groups["skill"].Value.Trim();
-                        AliasedArchetype? school = allowedArchetypes.Skills.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? school = archetypes.GetArchetype(ArchetypeType.Skill, match);
                         if (school == null)
                         {
                             Console.WriteLine($"School {match} not found");
                             continue;
                         }
-                        spellInfo.School = school.Name;
+                        spellInfo.School = school;
                     }
                     else if (mCasting.Count > 0)
                     {
                         string match = mCasting.First().Groups["casting"].Value.Trim();
-                        AliasedArchetype? castingType = allowedArchetypes.CastingTypes.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? castingType = archetypes.GetArchetype(ArchetypeType.CastingType, match);
                         if (castingType == null)
                         {
                             Console.WriteLine($"Casting type {match} not found");
                             continue;
                         }
-                        spellInfo.CastingType = castingType.Name;
+                        spellInfo.CastingType = castingType;
                     }
                     else if (mLevel.Count > 0)
                     {
                         string match = mLevel.First().Groups["level"].Value.Trim();
-                        AliasedArchetype? level = allowedArchetypes.Levels.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? level = archetypes.GetArchetype(ArchetypeType.Tier, match);
                         if (level == null)
                         {
                             Console.WriteLine($"Level {match} not found");
                             continue;
                         }
-                        spellInfo.Tier = level.Name;
+                        spellInfo.Tier = level;
                     }
                     else if (mTarget.Count > 0)
                     {
                         string match = mTarget.First().Groups["target"].Value.Trim();
-                        AliasedArchetype? target = allowedArchetypes.Targets.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? target = archetypes.GetArchetype(ArchetypeType.Targeting, match);
                         if (target == null)
                         {
                             Console.WriteLine($"Targeting type {match} not found");
@@ -764,7 +774,7 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mTechnique.Count > 0)
                     {
                         string match = mTechnique.First().Groups["technique"].Value.Trim();
-                        AliasedArchetype? technique = allowedArchetypes.Techniques.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? technique = archetypes.GetArchetype(ArchetypeType.Technique, match);
                         if (technique == null)
                         {
                             Console.WriteLine($"Technique {match} not found");
@@ -775,7 +785,7 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mElement.Count > 0)
                     {
                         string match = mElement.First().Groups["element"].Value.Trim();
-                        AliasedArchetype? element = allowedArchetypes.Elements.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? element = archetypes.GetArchetype(ArchetypeType.Element, match);
                         if (element == null)
                         {
                             Console.WriteLine($"Element {match} not found");
@@ -799,32 +809,32 @@ namespace SpellResearchSynthesizer.Classes
                     if (mSkill.Count > 0)
                     {
                         string match = mSkill.First().Groups["skill"].Value.Trim();
-                        AliasedArchetype? school = allowedArchetypes.Skills.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? school = archetypes.GetArchetype(ArchetypeType.Skill, match);
                         if (school == null)
                         {
                             Console.WriteLine($"School {match} not found");
                             continue;
                         }
-                        artifactInfo.Schools.Add(school.Name);
+                        artifactInfo.Schools.Add(school);
                     }
                     else if (mCasting.Count > 0)
                     {
                         string match = mCasting.First().Groups["casting"].Value.Trim();
-                        AliasedArchetype? castingType = allowedArchetypes.CastingTypes.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? castingType = archetypes.GetArchetype(ArchetypeType.CastingType, match);
                         if (castingType == null)
                         {
                             Console.WriteLine($"Casting type {match} not found");
                             continue;
                         }
-                        artifactInfo.CastingTypes.Add(castingType.Name);
+                        artifactInfo.CastingTypes.Add(castingType);
                     }
                     else if (mTier.Count > 0)
                     {
                         string match = mTier.First().Groups["tier"].Value.Trim();
                         int tier = int.TryParse(match, out int _tier) ? _tier : -1;
-                        if (!allowedArchetypes.ArtifactTiers.Contains(tier))
+                        if (!archetypes.ArtifactTiers.Contains(tier))
                         {
-                            Console.WriteLine($"Tier {match} not found");
+                            Console.WriteLine($"Tier {tier} not found");
                             continue;
                         }
                         artifactInfo.Tier = tier;
@@ -832,7 +842,7 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mTarget.Count > 0)
                     {
                         string match = mTarget.First().Groups["target"].Value.Trim();
-                        AliasedArchetype? target = allowedArchetypes.Targets.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? target = archetypes.GetArchetype(ArchetypeType.Targeting, match);
                         if (target == null)
                         {
                             Console.WriteLine($"Targeting type {match} not found");
@@ -843,7 +853,7 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mTechnique.Count > 0)
                     {
                         string match = mTechnique.First().Groups["technique"].Value.Trim();
-                        AliasedArchetype? technique = allowedArchetypes.Techniques.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? technique = archetypes.GetArchetype(ArchetypeType.Technique, match);
                         if (technique == null)
                         {
                             Console.WriteLine($"Technique {match} not found");
@@ -854,7 +864,7 @@ namespace SpellResearchSynthesizer.Classes
                     else if (mElement.Count > 0)
                     {
                         string match = mElement.First().Groups["element"].Value.Trim();
-                        AliasedArchetype? element = allowedArchetypes.Elements.FirstOrDefault(archetype => archetype.Name.ToLower() == match.ToLower() || archetype.Aliases.Any(alias => alias.ToLower() == match.ToLower()));
+                        Archetype? element = archetypes.GetArchetype(ArchetypeType.Element, match);
                         if (element == null)
                         {
                             Console.WriteLine($"Element {match} not found");

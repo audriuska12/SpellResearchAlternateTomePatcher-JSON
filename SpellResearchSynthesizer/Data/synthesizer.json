@@ -1,34 +1,77 @@
 {
 	"Novice": {
-		"font": "$HandwrittenFont",
-		"useFontColor": false,
-		"useImage": false,
-		"process": false
+		"Process": true,
+		"Font": "$HandwrittenFont",
+		"UseFontColor": false,
+		"UseImage": false,
+		"NoviceExperience": 500,
+		"ApprenticeExperience": 50,
+		"AdeptExperience": 5,
+		"ExpertExperience": 1,
+		"MasterExperience": 0,
+		"SkillRequired": 0
 	},
 	"Apprentice": {
-		"font": "$SkyrimBooks",
-		"useFontColor": true,
-		"useImage": false,
-		"process": true
+		"Process": true,
+		"Font": "$SkyrimBooks",
+		"UseFontColor": true,
+		"UseImage": false,
+		"NoviceExperience": 1000,
+		"ApprenticeExperience": 500,
+		"AdeptExperience": 50,
+		"ExpertExperience": 5,
+		"MasterExperience": 1,
+		"SkillRequired": 25
 	},
 	"Adept": {
-		"font": "$SkyrimBooks",
-		"useFontColor": true,
-		"useImage": true,
-		"process": true
+		"Process": true,
+		"Font": "$SkyrimBooks",
+		"UseFontColor": true,
+		"UseImage": true,
+		"NoviceExperience": 2000,
+		"ApprenticeExperience": 1000,
+		"AdeptExperience": 500,
+		"ExpertExperience": 50,
+		"MasterExperience": 5,
+		"SkillRequired": 50
 	},
 	"Expert": {
-		"font": "$FalmerFont",
-		"useFontColor": true,
-		"useImage": true,
-		"process": true
+		"Process": true,
+		"Font": "$SkyrimBooks",
+		"UseFontColor": true,
+		"UseImage": true,
+		"NoviceExperience": 4000,
+		"ApprenticeExperience": 2000,
+		"AdeptExperience": 1000,
+		"ExpertExperience": 500,
+		"MasterExperience": 50,
+		"SkillRequired": 75
 	},
 	"Master": {
-		"font": "$MageScriptFont",
-		"useFontColor": true,
-		"useImage": true,
-		"process": true
+		"Process": true,
+		"Font": "$SkyrimBooks",
+		"UseFontColor": true,
+		"UseImage": true,
+		"NoviceExperience": 8000,
+		"ApprenticeExperience": 4000,
+		"AdeptExperience": 2000,
+		"ExpertExperience": 1000,
+		"MasterExperience": 500,
+		"SkillRequired": 90
 	},
+	"FirstPerson": true,
+	"IgnoreDiscoverable": false,
+	"RemoveStartingSpells": true,
+	"GenerateFLMIni": true,
+	"StopOnInvalidPatch": false,
+	"jsonNames": [
+		"MysticismMagic.esp;SKSE/Plugins/SpellResearchImport/MysticismMagic/SR_ImportMysticism.json"
+	],
+	"jsonPaths": [
+		"SpellResearchSynthesizer",
+		"Spell Research",
+		"SKSE/Plugins/SpellResearchImport"
+	],
 	"pscnames": [
 		"Skyrim.esm;Scripts/Source/_SR_ImportSkyrim.psc",
 		"Dawnguard.esm;Scripts/Source/_SR_ImportDawnguard.psc",
@@ -323,13 +366,5 @@
 		"YurianaWench.esp;Scripts/Source/SpellResearchBuxomWenchYuriana.psc",
 		"ZCSkyrimTeleportationCollectionV2.esp;Scripts/Source/SpellResearchSkyrimTeleportationCollec.psc",
 		"Zim's Improved Dremora.esp;Scripts/Source/SpellResearchZimImprovedDremora.psc"
-	],
-	"jsonNames": [
-		"MysticismMagic.esp;SKSE/Plugins/SpellResearchImport/MysticismMagic/SR_ImportMysticism.json"
-	],
-	"jsonPaths": [
-		"SpellResearchSynthesizer",
-		"Spell Research",
-		"SKSE/Plugins/SpellResearchImport"
 	]
 }

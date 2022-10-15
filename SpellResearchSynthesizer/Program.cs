@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using System.Diagnostics;
 using SpellResearchSynthesizer.Classes;
 using Newtonsoft.Json;
+using static SpellResearchSynthesizer.Classes.Archetype;
 
 namespace SpellResearchSynthesizer
 {
@@ -37,24 +38,27 @@ namespace SpellResearchSynthesizer
 
         }
 
-        private static readonly string[] wovels = { "a", "e", "i", "o", "u" };
+        private static readonly char[] wovels = { 'a', 'e', 'i', 'o', 'u' };
 
         // Creates a string description of a spell given its archetypes
         private static string ProcessText(SpellInfo spell, ArchetypeVisualInfo archetypemap, LevelSettings s)
         {
+            if (spell.Tier == null) throw new Exception("Spell has no tier!");
+            if (spell.School == null) throw new Exception("Spell has no school!");
+            if (spell.CastingType == null) throw new Exception("Spell has no casting type!");
             string strbuilder = "";
-            strbuilder += $"{(wovels.Contains(spell.Tier[0..1]) ? "An " : "A ")}{spell.Tier[0..1].ToUpper() + spell.Tier[1..]} spell of the ";
-            if (s.useFontColor)
+            strbuilder += $"{(wovels.Contains(spell.Tier.Name.ToLower()[0]) ? "An " : "A ")}{spell.Tier.Name.CapitalizeFirst()} spell of the ";
+            if (s.UseFontColor)
             {
-                strbuilder += $"<font color='{(archetypemap.Archetypes[spell.School.ToLower()].Color ?? "#000000")}'>";
+                strbuilder += $"<font color='{(archetypemap.Archetypes[spell.School.Name.ToLower()].Color ?? "#000000")}'>";
             }
-            strbuilder += spell.School[0..1].ToUpper() + spell.School[1..];
-            if (s.useFontColor)
+            strbuilder += spell.School.Name.CapitalizeFirst();
+            if (s.UseFontColor)
             {
                 strbuilder += "</font><font color='#000000'>";
             }
             strbuilder += " school, ";
-            switch (spell.CastingType)
+            switch (spell.CastingType.Name.ToLower())
             {
                 case "concentration":
                     {
@@ -70,7 +74,7 @@ namespace SpellResearchSynthesizer
                     break;
             }
 
-            foreach (AliasedArchetype target in spell.Targeting)
+            foreach (Archetype target in spell.Targeting)
             {
                 switch (target.Name.ToLower())
                 {
@@ -102,12 +106,12 @@ namespace SpellResearchSynthesizer
             if (spell.Elements.Count > 0)
             {
                 strbuilder += $"Channels the element{(spell.Elements.Count > 1 ? "s" : string.Empty)} of ";
-                if (s.useFontColor)
+                if (s.UseFontColor)
                 {
                     strbuilder += "</font>";
                 }
                 int idx = 0;
-                foreach (AliasedArchetype e in spell.Elements)
+                foreach (Archetype e in spell.Elements)
                 {
                     if (idx > 0 && idx == spell.Elements.Count - 1)
                         strbuilder += " and ";
@@ -115,12 +119,12 @@ namespace SpellResearchSynthesizer
                     {
                         strbuilder += ", ";
                     }
-                    if (s.useFontColor)
+                    if (s.UseFontColor)
                     {
                         strbuilder += $"<font color='{archetypemap.Archetypes[e.Name.ToLower()]?.Color ?? "#000000"}'>";
                     }
                     strbuilder += e.Name[0..1].ToUpper() + e.Name[1..];
-                    if (s.useFontColor)
+                    if (s.UseFontColor)
                     {
                         strbuilder += "</font>";
                     }
@@ -131,17 +135,17 @@ namespace SpellResearchSynthesizer
 
             if (spell.Techniques.Count > 0)
             {
-                if (spell.Elements.Count > 0 && s.useFontColor)
+                if (spell.Elements.Count > 0 && s.UseFontColor)
                 {
                     strbuilder += "<font color='#000000'>";
                 }
                 strbuilder += $"Utilizes the technique{(spell.Techniques.Count > 1 ? 's' : string.Empty)} of ";
-                if (s.useFontColor)
+                if (s.UseFontColor)
                 {
                     strbuilder += "</font>";
                 }
                 int idx = 0;
-                foreach (AliasedArchetype t in spell.Techniques)
+                foreach (Archetype t in spell.Techniques)
                 {
                     if (idx > 0 && idx == spell.Techniques.Count - 1)
                         strbuilder += " and ";
@@ -149,12 +153,12 @@ namespace SpellResearchSynthesizer
                     {
                         strbuilder += ", ";
                     }
-                    if (s.useFontColor)
+                    if (s.UseFontColor)
                     {
                         strbuilder += $"<font color='{archetypemap.Archetypes[t.Name.ToLower()]?.Color ?? "#000000"}'>";
                     }
                     strbuilder += t.Name[0..1].ToUpper() + t.Name[1..];
-                    if (s.useFontColor)
+                    if (s.UseFontColor)
                     {
                         strbuilder += "</font>";
                     }
@@ -168,7 +172,6 @@ namespace SpellResearchSynthesizer
 
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
-            ArchetypeList allowedArchetypes = LoadArchetypes(state);
             string extraSettingsPath = Path.Combine(state.ExtraSettingsDataPath, "config.json");
             if (!File.Exists(extraSettingsPath)) throw new ArgumentException($"Archetype display settings missing! {extraSettingsPath}");
             string configText = File.ReadAllText(extraSettingsPath);
@@ -233,7 +236,7 @@ namespace SpellResearchSynthesizer
                             continue;
                         }
                         string spellconf = File.ReadAllText(jsonPath);
-                        patch = (mod.Key.FileName, SpellConfiguration.FromJson(state, spellconf, allowedArchetypes));
+                        patch = (mod.Key.FileName, SpellConfiguration.FromJson(state, spellconf));
                     }
                     else if (scriptFile.EndsWith(".psc"))
                     {
@@ -244,7 +247,7 @@ namespace SpellResearchSynthesizer
                             continue;
                         }
                         string spellconf = File.ReadAllText(pscPath);
-                        patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf, allowedArchetypes)));
+                        patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
                     }
                     if (patch != null)
                     {
@@ -282,7 +285,7 @@ namespace SpellResearchSynthesizer
                 Console.WriteLine("Removing starting spells...");
                 try
                 {
-                    INpcGetter player = state.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>().First(npc => npc.FormKey.ToString() == "000007:Skyrim.esm");
+                    INpcGetter player = GetPlayerBase(state);
                     Npc playerOverride = state.PatchMod.Npcs.GetOrAddAsOverride(player);
                     IEnumerable<ISpellGetter> spells = state.LoadOrder.PriorityOrder.WinningOverrides<ISpellGetter>().Where(spell => new string[] { "012FCC:Skyrim.esm", "012FCD:Skyrim.esm" }.Contains(spell.FormKey.ToString()));
                     if (playerOverride.ActorEffect != null)
@@ -303,41 +306,45 @@ namespace SpellResearchSynthesizer
                     foreach (SpellInfo spell in NewSpells)
                     {
                         if (spell.SpellForm == null) throw new Exception("Form ID error");
+                        if (spell.Tier == null) throw new Exception("Spell has no tier!");
+                        if (spell.School == null) throw new Exception("Spell has no school!");
+                        if (spell.CastingType == null) throw new Exception("Spell has no casting type!");
                         string spellFID = $"0x{spell.SpellForm.FormKey.ID:X6}~{spell.SpellESP}";
-                        string flAllSpellsTier = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["allSpells"]?.ToString());
+                        string flAllSpellsTier = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["allSpells"]?.ToString());
                         flmLists.Add(flAllSpellsTier, spellFID);
-                        string flSchool = FormatFormID(researchDataLists["spellSchools"]?[spell.School]?.ToString());
+                        string flSchool = FormatFormID(researchDataLists["spellSchools"]?[spell.School.Name.ToLower()]?.ToString());
                         flmLists.Add(flSchool, spellFID);
-                        string flCastingType = FormatFormID(researchDataLists["spellCastingTypes"]?[spell.CastingType]?.ToString());
-                        foreach (AliasedArchetype targeting in spell.Targeting)
+                        string flCastingType = FormatFormID(researchDataLists["spellCastingTypes"]?[spell.CastingType.Name.ToLower()]?.ToString());
+                        flmLists.Add(flCastingType, spellFID);
+                        foreach (Archetype targeting in spell.Targeting)
                         {
-                            string flTargeting = FormatFormID(researchDataLists["spellTargeting"]?[targeting.Name]?.ToString());
+                            string flTargeting = FormatFormID(researchDataLists["spellTargeting"]?[targeting.Name.ToLower()]?.ToString());
                             flmLists.Add(flTargeting, spellFID);
                         }
-                        foreach (AliasedArchetype element in spell.Elements)
+                        foreach (Archetype element in spell.Elements)
                         {
-                            string flElement = FormatFormID(researchDataLists["spellElements"]?[element.Name]?.ToString());
+                            string flElement = FormatFormID(researchDataLists["spellElements"]?[element.Name.ToLower()]?.ToString());
                             flmLists.Add(flElement, spellFID);
                         }
-                        foreach (AliasedArchetype technique in spell.Techniques)
+                        foreach (Archetype technique in spell.Techniques)
                         {
-                            string flTechnique = FormatFormID(researchDataLists["spellTechniques"]?[technique.Name]?.ToString());
+                            string flTechnique = FormatFormID(researchDataLists["spellTechniques"]?[technique.Name.ToLower()]?.ToString());
                             flmLists.Add(flTechnique, spellFID);
                         }
                         if (spell.ScrollForm != null)
                         {
                             string scrollFID = $"0x{spell.ScrollForm.FormKey.ID:X6}~{spell.ScrollESP}";
-                            string flScrolls = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["scrolls"]?.ToString());
+                            string flScrolls = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["scrolls"]?.ToString());
                             flmLists.Add(flScrolls, scrollFID);
-                            string flScrollSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["scrollSpells"]?.ToString());
+                            string flScrollSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["scrollSpells"]?.ToString());
                             flmLists.Add(flScrollSpells, spellFID);
                         }
                         if (spell.TomeForm != null)
                         {
                             string tomeFID = $"0x{spell.TomeForm.FormKey.ID:X6}~{spell.TomeESP}";
-                            string flTomes = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["tomes"]?.ToString());
+                            string flTomes = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["tomes"]?.ToString());
                             flmLists.Add(flTomes, tomeFID);
-                            string flTomeSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier]?["tomeSpells"]?.ToString());
+                            string flTomeSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["tomeSpells"]?.ToString());
                             flmLists.Add(flTomeSpells, spellFID);
                         }
                         if (!spell.Enabled)
@@ -351,29 +358,29 @@ namespace SpellResearchSynthesizer
                         string artifactFID = FormatFormID(artifact.ArtifactID);
                         string flTier = FormatFormID(researchDataLists["artifactTiers"]?[artifact.Tier.ToString()]?.ToString());
                         flmLists.Add(flTier, artifactFID);
-                        foreach (string school in artifact.Schools)
+                        foreach (Archetype school in artifact.Schools)
                         {
-                            string flSchool = FormatFormID(researchDataLists["artifactSchools"]?[school]?.ToString());
+                            string flSchool = FormatFormID(researchDataLists["artifactSchools"]?[school.Name.ToLower()]?.ToString());
                             flmLists.Add(flSchool, artifactFID);
                         }
-                        foreach (string casting in artifact.CastingTypes)
+                        foreach (Archetype casting in artifact.CastingTypes)
                         {
-                            string flCastingType = FormatFormID(researchDataLists["artifactCastingTypes"]?[casting]?.ToString());
+                            string flCastingType = FormatFormID(researchDataLists["artifactCastingTypes"]?[casting.Name.ToLower()]?.ToString());
                             flmLists.Add(flCastingType, artifactFID);
                         }
-                        foreach (AliasedArchetype targeting in artifact.Targeting)
+                        foreach (Archetype targeting in artifact.Targeting)
                         {
                             string flTargeting = FormatFormID(researchDataLists["artifactTargeting"]?[targeting]?.ToString());
                             flmLists.Add(flTargeting, artifactFID);
                         }
-                        foreach (AliasedArchetype element in artifact.Elements)
+                        foreach (Archetype element in artifact.Elements)
                         {
-                            string flElement = FormatFormID(researchDataLists["artifactElements"]?[element.Name]?.ToString());
+                            string flElement = FormatFormID(researchDataLists["artifactElements"]?[element.Name.ToLower()]?.ToString());
                             flmLists.Add(flElement, artifactFID);
                         }
-                        foreach (AliasedArchetype technique in artifact.Techniques)
+                        foreach (Archetype technique in artifact.Techniques)
                         {
-                            string flTechnique = FormatFormID(researchDataLists["artifactTechniques"]?[technique.Name]?.ToString());
+                            string flTechnique = FormatFormID(researchDataLists["artifactTechniques"]?[technique.Name.ToLower()]?.ToString());
                             flmLists.Add(flTechnique, artifactFID);
                         }
                         if (artifact.Equippable)
@@ -402,6 +409,15 @@ namespace SpellResearchSynthesizer
                 Console.WriteLine("FLM .ini generated succesfully");
             }
         }
+        private static INpcGetter? PlayerCachedBase = null;
+        private static INpcGetter GetPlayerBase(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+        {
+            if (PlayerCachedBase == null)
+            {
+                PlayerCachedBase = state.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>().First(npc => npc.FormKey.ToString() == "000007:Skyrim.esm");
+            }
+            return PlayerCachedBase;
+        }
 
         private static void PrintValidationResults(ValidationResults validationResults)
         {
@@ -424,16 +440,6 @@ namespace SpellResearchSynthesizer
             if (fid == null) throw new ArgumentException("Form ID is null");
             return $"{fid.Split("|")[2]}~{fid.Split("|")[1]}";
         }
-
-        private static ArchetypeList LoadArchetypes(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
-        {
-            string archetypeListPath = Path.Combine(state.ExtraSettingsDataPath, "archetypes.json");
-            if (!File.Exists(archetypeListPath)) throw new ArgumentException($"Archetype list information missing! {archetypeListPath}");
-            ArchetypeList? allowedArchetypes = JsonConvert.DeserializeObject<ArchetypeList>(File.ReadAllText(archetypeListPath));
-            if (allowedArchetypes == null) throw new ArgumentException($"Error reading archetype list");
-            return allowedArchetypes;
-        }
-
         private static ArchetypeVisualInfo LoadArchetypeVisualInfo(string configText)
         {
             ArchetypeVisualInfo archconfig = ArchetypeVisualInfo.From(configText);
@@ -585,6 +591,8 @@ namespace SpellResearchSynthesizer
             {
                 foreach (SpellInfo spell in spells)
                 {
+                    if (spell.Tier == null) throw new Exception("Spell has no tier!");
+                    if (spell.School == null) throw new Exception("Spell has no school!");
                     if ((!spell.Enabled) || spell.TomeForm == null) continue;
                     IBookGetter? bookRecord = state.LinkCache.TryResolve<IBookGetter>(spell.TomeForm.FormKey, out IBookGetter? _out) ? _out : null;
                     if (bookRecord == null)
@@ -596,7 +604,7 @@ namespace SpellResearchSynthesizer
                     {
                         Console.WriteLine(bookRecord);
                         LevelSettings s;
-                        switch (spell.Tier.ToLower())
+                        switch (spell.Tier.Name.ToLower())
                         {
                             case "novice":
                                 {
@@ -629,13 +637,13 @@ namespace SpellResearchSynthesizer
                                     break;
                                 }
                         }
-                        if (!s.process)
+                        if (!s.Process)
                         {
                             continue;
                         }
                         string desc = ProcessText(spell, archConfig, s).Trim();
 
-                        string? font = s.font;
+                        string? font = s.Font;
                         Regex rnamefix = new("^.+\\s+(Tome)\\:?(?<tomename>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
                         //var font = config["Fonts"]?[archetypemap["level"]].ToString() ?? "$HandwrittenFont";
                         string? name = bookRecord.Name?.String ?? $"Spell Tome: {spell.Name}";
@@ -660,7 +668,7 @@ namespace SpellResearchSynthesizer
                         string imgpath = "";
                         string img = "";
 
-                        if (s.useImage)
+                        if (s.UseImage)
                         {
                             if (spell.Elements.Count > 0)
                             {
@@ -685,11 +693,131 @@ namespace SpellResearchSynthesizer
                         Book? bookOverride = state.PatchMod.Books.GetOrAddAsOverride(bookRecord);
                         bookOverride.Teaches = new BookTeachesNothing();
                         bookOverride.BookText = btext;
+                        bookOverride.VirtualMachineAdapter ??= new();
+                        if (s.NoviceExperience > 0 || s.ApprenticeExperience > 0 || s.AdeptExperience > 0 || s.ExpertExperience > 0 || s.MasterExperience > 0)
+                        {
+                            ScriptEntry script = new()
+                            {
+                                Name = "SpellResearchSynthesizerBookReadScript",
+                                Properties = new Noggog.ExtendedList<ScriptProperty> {
+                                    new ScriptObjectProperty {
+                                        Name = "Tome",
+                                        Object = bookOverride.ToLink<IBookGetter>()
+                                    },
+                                    new ScriptObjectProperty {
+                                        Name = "ReadTomeList",
+                                        Object = GetTomeList(state, spell.School, spell.Tier)
+                                    },
+                                    new ScriptStringProperty {
+                                        Name = "Skill",
+                                        Data = spell.School.Name,
+                                    },
+                                    new ScriptIntProperty
+                                    {
+                                        Name = "SkillRequired",
+                                        Data = s.SkillRequired,
+                                    },
+                                    new ScriptIntProperty {
+                                        Name = "FirstPerson",
+                                        Data = settings.Value.FirstPerson ? 1 : 0,
+                                    }
+                                }
+                            };
+                            FillScriptGlobals(state, script.Properties, spell, s.NoviceExperience, s.ApprenticeExperience, s.AdeptExperience, s.ExpertExperience, s.MasterExperience);
+                            bookOverride.VirtualMachineAdapter.Scripts.Add(script);
+                        }
                     }
                 }
             }
         }
 
+        private static void FillScriptGlobals(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, Noggog.ExtendedList<ScriptProperty> properties, SpellInfo spell, int noviceExperience, int apprenticeExperience, int adeptExperience, int expertExperience, int masterExperience)
+        {
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
+            ScriptObjectListProperty globals = new()
+            {
+                Name = "Archetypes"
+            };
+            ScriptIntListProperty values = new()
+            {
+                Name = "XPValues"
+            };
+            if (noviceExperience > 0)
+            {
+                FillScriptGlobals(state, spell, globals, values, noviceExperience, archetypes.GetArchetype(ArchetypeType.Tier, "Novice") ?? throw new Exception());
+            }
+            if (apprenticeExperience > 0)
+            {
+                FillScriptGlobals(state, spell, globals, values, apprenticeExperience, archetypes.GetArchetype(ArchetypeType.Tier, "Apprentice") ?? throw new Exception());
+            }
+            if (adeptExperience > 0)
+            {
+                FillScriptGlobals(state, spell, globals, values, adeptExperience, archetypes.GetArchetype(ArchetypeType.Tier, "Adept") ?? throw new Exception());
+            }
+            if (expertExperience > 0)
+            {
+                FillScriptGlobals(state, spell, globals, values, expertExperience, archetypes.GetArchetype(ArchetypeType.Tier, "Expert") ?? throw new Exception());
+            }
+            if (masterExperience > 0)
+            {
+                FillScriptGlobals(state, spell, globals, values, masterExperience, archetypes.GetArchetype(ArchetypeType.Tier, "Master") ?? throw new Exception());
+            }
+            properties.Add(globals);
+            properties.Add(values);
+        }
+        static readonly Dictionary<string, IGlobalGetter> GlobalCache = new();
+
+        private static void FillScriptGlobals(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, SpellInfo spell, ScriptObjectListProperty globals, ScriptIntListProperty values, int xp, Archetype tier)
+        {
+            string edidSkill = spell.School?.Tiers?[tier].GlobalEditorID ?? throw new Exception("Spell has no school!");
+            if (!GlobalCache.ContainsKey(edidSkill))
+            {
+                GlobalCache[edidSkill] = state.LinkCache.TryResolve<IGlobalGetter>(edidSkill, out IGlobalGetter? _skill) ? _skill : throw new Exception($"Failed to find skill global variable {edidSkill}!"); ;
+            }
+            IGlobalGetter skill = GlobalCache[edidSkill];
+            globals.Objects.Add(new ScriptObjectProperty
+            {
+                Object = skill.ToLink<IGlobal>()
+            });
+            values.Data.Add(xp);
+            string edidCastingType = spell.CastingType?.Tiers?[tier].GlobalEditorID ?? throw new Exception("Spell has no casting type!");
+            if (!GlobalCache.ContainsKey(edidCastingType))
+            {
+                GlobalCache[edidCastingType] = state.LinkCache.TryResolve<IGlobalGetter>(edidCastingType, out IGlobalGetter? _castingType) ? _castingType : throw new Exception($"Failed to find skill global {edidCastingType}");
+            }
+            IGlobalGetter castingType = GlobalCache[edidCastingType];
+            globals.Objects.Add(new ScriptObjectProperty
+            {
+                Object = castingType.ToLink<IGlobal>()
+            });
+            values.Data.Add(xp);
+            foreach (Archetype arch in spell.Targeting.Union(spell.Elements).Union(spell.Techniques))
+            {
+                string edidArch = arch.Tiers?[tier].GlobalEditorID ?? throw new Exception($"Error resolving global ID for {arch.Name} {tier.Name}");
+                if (!GlobalCache.ContainsKey(edidArch))
+                {
+                    GlobalCache[edidArch] = state.LinkCache.TryResolve<IGlobalGetter>(edidArch, out IGlobalGetter? _global) ? _global : throw new Exception($"Failed to find skill global {edidArch}");
+                }
+                IGlobalGetter global = GlobalCache[edidArch];
+                globals.Objects.Add(new ScriptObjectProperty
+                {
+                    Object = global.ToLink<IGlobal>()
+                });
+                values.Data.Add(xp);
+            }
+        }
+
+        private static readonly Dictionary<string, IFormLink<IFormListGetter>> TomeFormLists = new();
+
+        private static IFormLink<ISkyrimMajorRecordGetter> GetTomeList(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, Archetype school, Archetype tier)
+        {
+            string editorID = $"SRS_Tome_{school.Name}_{tier.Name}";
+            if (!TomeFormLists.ContainsKey(editorID))
+            {
+                TomeFormLists[editorID] = state.LinkCache.TryResolve<IFormListGetter>(editorID, out IFormListGetter? list) ? list.FormKey.ToLink<IFormListGetter>() : throw new Exception($"Failed to resolve {editorID}");
+            }
+            return TomeFormLists[editorID];
+        }
     }
 
 }

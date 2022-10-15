@@ -9,21 +9,21 @@ namespace SpellResearchSynthesizer.Classes
     {
         [JsonProperty("name")]
         public string Name { get; set; } = string.Empty;
-        private string _Tier = string.Empty;
+        public Archetype? Tier { get; set; } = null;
         [JsonProperty("tier")]
-        public string Tier { get => _Tier; set => _Tier = value.ToLower(); }
+        private string TierJson => Tier?.Name.ToLower() ?? "";
+        public Archetype? School { get; set; } = null;
         [JsonProperty("school")]
-        public string School { get; set; } = string.Empty;
-        private string _CastingType = string.Empty;
-
+        private string SchoolJson => School?.Name.ToLower() ?? "";
+        public Archetype? CastingType { get; set; }
         [JsonProperty("castingType")]
-        public string CastingType { get => _CastingType; set => _CastingType = value.ToLower(); }
-        [JsonProperty("targeting", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Targeting { get; set; } = new List<AliasedArchetype>();
-        [JsonProperty("elements", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Elements { get; set; } = new List<AliasedArchetype>();
-        [JsonProperty("techniques", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Techniques { get; set; } = new List<AliasedArchetype>();
+        private string CastingTypeJson => CastingType?.Name.ToLower() ?? "";
+        [JsonProperty("targeting", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Targeting { get; set; } = new List<Archetype>();
+        [JsonProperty("elements", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Elements { get; set; } = new List<Archetype>();
+        [JsonProperty("techniques", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Techniques { get; set; } = new List<Archetype>();
         public string SpellID { get; set; } = string.Empty;
         public ISpellGetter? SpellForm { get; set; }
         public string SpellESP => SpellForm == null ? string.IsNullOrEmpty(SpellID) ? "" : SpellID.Split('|')[1] : SpellForm.FormKey.ModKey.FileName.ToString().ToLower();

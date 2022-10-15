@@ -22,15 +22,15 @@ namespace SpellResearchSynthesizer.Classes
         [JsonProperty("tier")]
         public int Tier { get; set; } = 0;
         [JsonProperty("schools")]
-        public List<string> Schools { get; set; } = new();
+        public List<Archetype> Schools { get; set; } = new();
         [JsonProperty("castingTypes")]
-        public List<string> CastingTypes { get; set; } = new();
-        [JsonProperty("targeting", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Targeting { get; set; } = new();
-        [JsonProperty("elements", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Elements { get; set; } = new List<AliasedArchetype>();
-        [JsonProperty("techniques", ItemConverterType = typeof(AliasedArchetype.Converter))]
-        public List<AliasedArchetype> Techniques { get; set; } = new List<AliasedArchetype>();
+        public List<Archetype> CastingTypes { get; set; } = new();
+        [JsonProperty("targeting", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Targeting { get; set; } = new();
+        [JsonProperty("elements", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Elements { get; set; } = new List<Archetype>();
+        [JsonProperty("techniques", ItemConverterType = typeof(Archetype.Converter))]
+        public List<Archetype> Techniques { get; set; } = new List<Archetype>();
         [JsonProperty("equippableAll")]
         public bool Equippable { get; set; } = false;
         [JsonProperty("equippableArtifact")]

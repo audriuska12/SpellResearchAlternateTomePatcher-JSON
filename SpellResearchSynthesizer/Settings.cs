@@ -1,8 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SpellResearchSynthesizer
 {
@@ -13,10 +9,11 @@ namespace SpellResearchSynthesizer
         public LevelSettings Adept = new();
         public LevelSettings Expert = new();
         public LevelSettings Master = new();
+        public bool FirstPerson = true;
         public bool IgnoreDiscoverable = false;
-        public bool RemoveStartingSpells = false;
+        public bool RemoveStartingSpells = true;
         public bool GenerateFLMIni = true;
-        public bool StopOnInvalidPatch = true;
+        public bool StopOnInvalidPatch = false;
         public List<string> jsonNames = new();
         public List<string> jsonPaths = new();
         public List<string> pscnames = new();
@@ -24,10 +21,15 @@ namespace SpellResearchSynthesizer
 
     public class LevelSettings
     {
-        public bool process = true;
-        public string font = "";
-        public bool useFontColor;
-        public bool useImage;
-
+        public bool Process = true;
+        public string Font = "";
+        public bool UseFontColor;
+        public bool UseImage;
+        public int NoviceExperience;
+        public int ApprenticeExperience;
+        public int AdeptExperience;
+        public int ExpertExperience;
+        public int MasterExperience;
+        public int SkillRequired;
     }
 }
