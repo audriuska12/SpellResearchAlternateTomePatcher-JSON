@@ -214,6 +214,7 @@ namespace SpellResearchSynthesizer
                 }
             }
             List<(string mod, SpellConfiguration spells)> output = new();
+            List<(string mod, ValidationResults res)> validationResults = new();
             foreach (Noggog.IKeyValue<ModKey, IModListing<ISkyrimModGetter>>? mod in state.LoadOrder)
             {
                 if (mod == null) continue;
@@ -248,16 +249,20 @@ namespace SpellResearchSynthesizer
                         }
                         string spellconf = File.ReadAllText(pscPath);
                         patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
+                        if (settings.Value.ConvertPSCToJson) {
+                            File.WriteAllText(state.DataFolderPath + $@"\SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches\{mod.Key.FileName.NameWithoutExtension}.json", JsonConvert.SerializeObject(new OutputTemplate {
+                                NewSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
+                                RemovedSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
+                                NewArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewArtifacts).ToList(),
+                                RemovedArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedArtifacts).ToList()
+                            }, Formatting.Indented));
+                        }
                     }
                     if (patch != null)
                     {
-                        if (!patch.Value.Spells.Validate(out ValidationResults validationResults))
+                        if (!patch.Value.Spells.Validate(out ValidationResults res))
                         {
-                            PrintValidationResults(validationResults);
-                            if (settings.Value.StopOnInvalidPatch)
-                            {
-                                throw new ArgumentException("Terminating due to invalid patch!");
-                            }
+                            validationResults.Add((mod.Key.FileName, res));
                         }
                         output.Add(patch.Value);
                     }
@@ -407,6 +412,10 @@ namespace SpellResearchSynthesizer
                 }
                 File.WriteAllLines(state.DataFolderPath + @"\SpellResearchSynthesizer_FLM.ini", flmOutput);
                 Console.WriteLine("FLM .ini generated succesfully");
+                foreach ((string mod, ValidationResults res) in validationResults) {
+                    Console.WriteLine("Duplicates found:");
+                    PrintValidationResults(res);
+                }
             }
         }
         private static INpcGetter? PlayerCachedBase = null;

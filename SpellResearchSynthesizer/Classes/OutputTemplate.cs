@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace SpellResearchSynthesizer.Classes
 {
-    [JsonObject(MemberSerialization = MemberSerialization.OptIn)]
+    [JsonObject(MemberSerialization = MemberSerialization.OptIn, ItemNullValueHandling = NullValueHandling.Ignore)]
     public class OutputTemplate
     {
         [JsonProperty("newSpells")]
