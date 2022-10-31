@@ -7,7 +7,7 @@ using System.Linq;
 namespace SpellResearchSynthesizer.Classes
 {
     [JsonObject(MemberSerialization.OptIn)]
-    public class Archetype
+    public class Archetype : IEquatable<Archetype>
     {
         public enum ArchetypeType
         {
@@ -56,6 +56,16 @@ namespace SpellResearchSynthesizer.Classes
             }
 
             public override bool CanRead => false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Name);
+        }
+
+        public bool Equals(Archetype? other)
+        {
+            return other?.Name == Name;
         }
     }
 }

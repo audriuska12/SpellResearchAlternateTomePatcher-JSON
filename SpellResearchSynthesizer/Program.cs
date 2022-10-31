@@ -249,8 +249,10 @@ namespace SpellResearchSynthesizer
                         }
                         string spellconf = File.ReadAllText(pscPath);
                         patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
-                        if (settings.Value.ConvertPSCToJson) {
-                            File.WriteAllText(state.DataFolderPath + $@"\SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches\{mod.Key.FileName.NameWithoutExtension}.json", JsonConvert.SerializeObject(new OutputTemplate {
+                        if (settings.Value.ConvertPSCToJson)
+                        {
+                            File.WriteAllText(state.DataFolderPath + $@"\SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches\{mod.Key.FileName.NameWithoutExtension}.json", JsonConvert.SerializeObject(new OutputTemplate
+                            {
                                 NewSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
                                 RemovedSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
                                 NewArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewArtifacts).ToList(),
@@ -301,6 +303,11 @@ namespace SpellResearchSynthesizer
                 {
                     Console.WriteLine(ex.Message, ex.StackTrace);
                 }
+            }
+            foreach ((string mod, ValidationResults res) in validationResults)
+            {
+                Console.WriteLine("Duplicates found:");
+                PrintValidationResults(res);
             }
             if (settings.Value.GenerateFLMIni)
             {
@@ -412,10 +419,6 @@ namespace SpellResearchSynthesizer
                 }
                 File.WriteAllLines(state.DataFolderPath + @"\SpellResearchSynthesizer_FLM.ini", flmOutput);
                 Console.WriteLine("FLM .ini generated succesfully");
-                foreach ((string mod, ValidationResults res) in validationResults) {
-                    Console.WriteLine("Duplicates found:");
-                    PrintValidationResults(res);
-                }
             }
         }
         private static INpcGetter? PlayerCachedBase = null;

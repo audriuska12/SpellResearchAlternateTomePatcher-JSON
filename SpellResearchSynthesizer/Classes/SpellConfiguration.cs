@@ -30,6 +30,7 @@ namespace SpellResearchSynthesizer.Classes
                 if (data == null) return config;
                 config = ParseJSONFormat(state, data);
             }
+            config.ClearDuplicateArchetypes();
             return config;
         }
 
@@ -83,6 +84,27 @@ namespace SpellResearchSynthesizer.Classes
                 }
             }
             return config;
+        }
+
+        private void ClearDuplicateArchetypes()
+        {
+            foreach (KeyValuePair<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> m in Mods)
+            {
+                foreach (SpellInfo spell in m.Value.NewSpells)
+                {
+                    spell.Targeting = spell.Targeting.Distinct().ToList();
+                    spell.Elements = spell.Elements.Distinct().ToList();
+                    spell.Techniques = spell.Techniques.Distinct().ToList();
+                }
+                foreach (ArtifactInfo artifact in m.Value.NewArtifacts)
+                {
+                    artifact.Schools = artifact.Schools.Distinct().ToList();
+                    artifact.CastingTypes = artifact.CastingTypes.Distinct().ToList();
+                    artifact.Targeting = artifact.Targeting.Distinct().ToList();
+                    artifact.Elements = artifact.Elements.Distinct().ToList();
+                    artifact.Techniques = artifact.Techniques.Distinct().ToList();
+                }
+            }
         }
 
         private static SpellInfo? ParseMysticismSpellEntry(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newSpell)
@@ -887,6 +909,7 @@ namespace SpellResearchSynthesizer.Classes
 
                 }
             }
+            config.ClearDuplicateArchetypes();
             return config;
         }
 
