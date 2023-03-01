@@ -1,3 +1,4 @@
+using Mutagen.Bethesda.Plugins.Exceptions;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
@@ -915,7 +916,15 @@ namespace SpellResearchSynthesizer.Classes
 
         private static ISpellGetter? CheckSpellFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellESP, string spellFormID)
         {
-            ISkyrimModGetter? mod = state.LoadOrder[spellESP].Mod;
+            ISkyrimModGetter? mod;
+            try
+            {
+                mod = state.LoadOrder[spellESP].Mod;
+            }
+            catch (MissingModException) {
+                Console.WriteLine($"Mod {spellESP} not found in load order.");
+                mod = null;
+            }
             if (mod == null) return null;
             Console.WriteLine($"Resolving spell ID {spellFormID} from {spellESP}");
             if (spellFormID.Length >= 8)
@@ -945,7 +954,16 @@ namespace SpellResearchSynthesizer.Classes
         }
         private static IBookGetter? CheckTomeFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string tomeESP, string tomeFormID)
         {
-            ISkyrimModGetter? mod = state.LoadOrder[tomeESP].Mod;
+            ISkyrimModGetter? mod;
+            try
+            {
+                mod = state.LoadOrder[tomeESP].Mod;
+            }
+            catch (MissingModException)
+            {
+                Console.WriteLine($"Mod {tomeESP} not found in load order.");
+                mod = null;
+            }
             if (mod == null) return null;
             Console.WriteLine($"Resolving tome ID {tomeFormID} from {tomeESP}");
             if (tomeFormID.Length >= 8)
@@ -975,7 +993,16 @@ namespace SpellResearchSynthesizer.Classes
         }
         private static IScrollGetter? CheckScrollFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string scrollESP, string scrollFormID)
         {
-            ISkyrimModGetter? mod = state.LoadOrder[scrollESP].Mod;
+            ISkyrimModGetter? mod;
+            try
+            {
+                mod = state.LoadOrder[scrollESP].Mod;
+            }
+            catch (MissingModException)
+            {
+                Console.WriteLine($"Mod {scrollESP} not found in load order.");
+                mod = null;
+            }
             if (mod == null) return null;
             Console.WriteLine($"Resolving scroll ID {scrollFormID} from {scrollESP}");
             if (scrollFormID.Length >= 8)
