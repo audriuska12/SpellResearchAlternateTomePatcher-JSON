@@ -172,7 +172,7 @@ namespace SpellResearchSynthesizer
 
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
-            string extraSettingsPath = Path.Combine(state.ExtraSettingsDataPath, "config.json");
+            string extraSettingsPath = Path.Combine(state.ExtraSettingsDataPath ?? throw new Exception("Extra settings data path missing"), "config.json");
             if (!File.Exists(extraSettingsPath)) throw new ArgumentException($"Archetype display settings missing! {extraSettingsPath}");
             string configText = File.ReadAllText(extraSettingsPath);
             ArchetypeVisualInfo archConfig = LoadArchetypeVisualInfo(configText);
