@@ -14,6 +14,7 @@ namespace SpellResearchSynthesizer
         public bool RemoveStartingSpells = true;
         public bool GenerateFLMIni = true;
         public bool ConvertPSCToJson = false;
+        public bool ExperimentalTeachesSpellFix = false;
         public List<string> jsonNames = new();
         public List<string> jsonPaths = new();
         public List<string> pscnames = new();

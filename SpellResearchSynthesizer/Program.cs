@@ -703,7 +703,14 @@ namespace SpellResearchSynthesizer
                         btext = Regex.Replace(btext, @"FONT\s*(COLOR)*", m => m.Value.ToLower());
                         Console.WriteLine("DESC: {0}", btext);
                         Book? bookOverride = state.PatchMod.Books.GetOrAddAsOverride(bookRecord);
-                        bookOverride.Teaches = new BookTeachesNothing();
+                        if (settings.Value.ExperimentalTeachesSpellFix)
+                        {
+                            bookOverride.Teaches?.Clear();
+                        }
+                        else
+                        {
+                            bookOverride.Teaches = new BookTeachesNothing();
+                        }
                         bookOverride.BookText = btext;
                         bookOverride.VirtualMachineAdapter ??= new();
                         if (s.NoviceExperience > 0 || s.ApprenticeExperience > 0 || s.AdeptExperience > 0 || s.ExpertExperience > 0 || s.MasterExperience > 0)
