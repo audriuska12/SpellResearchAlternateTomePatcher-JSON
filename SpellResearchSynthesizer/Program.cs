@@ -183,6 +183,11 @@ namespace SpellResearchSynthesizer
                 return;
             }
             Dictionary<string, List<string>> mods = new();
+            string generatedPatchDirectory = Path.Combine(state.DataFolderPath, @"SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches");
+            if (settings.Value.ConvertPSCToJson) {
+                Console.WriteLine($"Creating directory {generatedPatchDirectory}...");
+                Console.WriteLine(Directory.CreateDirectory(generatedPatchDirectory));
+            }
             foreach ((string mod, string file) in GetJsonHardlinkedMods())
             {
                 if (!mods.ContainsKey(mod.ToLower()))
@@ -251,7 +256,7 @@ namespace SpellResearchSynthesizer
                         patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
                         if (settings.Value.ConvertPSCToJson)
                         {
-                            File.WriteAllText(state.DataFolderPath + $@"\SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches\{mod.Key.FileName.NameWithoutExtension}.json", JsonConvert.SerializeObject(new OutputTemplate
+                            File.WriteAllText(Path.Combine(generatedPatchDirectory, $"{mod.Key.FileName.NameWithoutExtension}.json"), JsonConvert.SerializeObject(new OutputTemplate
                             {
                                 NewSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
                                 RemovedSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
@@ -295,8 +300,7 @@ namespace SpellResearchSynthesizer
                     INpcGetter player = GetPlayerBase(state);
                     Npc playerOverride = state.PatchMod.Npcs.GetOrAddAsOverride(player);
                     IEnumerable<ISpellGetter> spells = state.LoadOrder.PriorityOrder.WinningOverrides<ISpellGetter>().Where(spell => new string[] { "012FCC:Skyrim.esm", "012FCD:Skyrim.esm" }.Contains(spell.FormKey.ToString()));
-                    if (playerOverride.ActorEffect != null)
-                        playerOverride.ActorEffect.Remove(spells);
+                    playerOverride.ActorEffect?.Remove(spells);
                     Console.WriteLine("Spells removed");
                 }
                 catch (Exception ex)
