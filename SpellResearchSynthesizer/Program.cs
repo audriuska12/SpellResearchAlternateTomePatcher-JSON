@@ -172,7 +172,7 @@ namespace SpellResearchSynthesizer
 
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
-            string extraSettingsPath = Path.Combine(state.ExtraSettingsDataPath, "config.json");
+            string extraSettingsPath = Path.Combine(state.ExtraSettingsDataPath ?? throw new Exception("Extra settings data path missing"), "config.json");
             if (!File.Exists(extraSettingsPath)) throw new ArgumentException($"Archetype display settings missing! {extraSettingsPath}");
             string configText = File.ReadAllText(extraSettingsPath);
             ArchetypeVisualInfo archConfig = LoadArchetypeVisualInfo(configText);
@@ -183,6 +183,11 @@ namespace SpellResearchSynthesizer
                 return;
             }
             Dictionary<string, List<string>> mods = new();
+            string generatedPatchDirectory = Path.Combine(state.DataFolderPath, @"SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches");
+            if (settings.Value.ConvertPSCToJson) {
+                Console.WriteLine($"Creating directory {generatedPatchDirectory}...");
+                Console.WriteLine(Directory.CreateDirectory(generatedPatchDirectory));
+            }
             foreach ((string mod, string file) in GetJsonHardlinkedMods())
             {
                 if (!mods.ContainsKey(mod.ToLower()))
@@ -251,7 +256,7 @@ namespace SpellResearchSynthesizer
                         patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
                         if (settings.Value.ConvertPSCToJson)
                         {
-                            File.WriteAllText(state.DataFolderPath + $@"\SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches\{mod.Key.FileName.NameWithoutExtension}.json", JsonConvert.SerializeObject(new OutputTemplate
+                            File.WriteAllText(Path.Combine(generatedPatchDirectory, $"{mod.Key.FileName.NameWithoutExtension}.json"), JsonConvert.SerializeObject(new OutputTemplate
                             {
                                 NewSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
                                 RemovedSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
@@ -295,8 +300,7 @@ namespace SpellResearchSynthesizer
                     INpcGetter player = GetPlayerBase(state);
                     Npc playerOverride = state.PatchMod.Npcs.GetOrAddAsOverride(player);
                     IEnumerable<ISpellGetter> spells = state.LoadOrder.PriorityOrder.WinningOverrides<ISpellGetter>().Where(spell => new string[] { "012FCC:Skyrim.esm", "012FCD:Skyrim.esm" }.Contains(spell.FormKey.ToString()));
-                    if (playerOverride.ActorEffect != null)
-                        playerOverride.ActorEffect.Remove(spells);
+                    playerOverride.ActorEffect?.Remove(spells);
                     Console.WriteLine("Spells removed");
                 }
                 catch (Exception ex)
@@ -703,7 +707,14 @@ namespace SpellResearchSynthesizer
                         btext = Regex.Replace(btext, @"FONT\s*(COLOR)*", m => m.Value.ToLower());
                         Console.WriteLine("DESC: {0}", btext);
                         Book? bookOverride = state.PatchMod.Books.GetOrAddAsOverride(bookRecord);
-                        bookOverride.Teaches = new BookTeachesNothing();
+                        if (settings.Value.ExperimentalTeachesSpellFix)
+                        {
+                            bookOverride.Teaches?.Clear();
+                        }
+                        else
+                        {
+                            bookOverride.Teaches = new BookTeachesNothing();
+                        }
                         bookOverride.BookText = btext;
                         bookOverride.VirtualMachineAdapter ??= new();
                         if (s.NoviceExperience > 0 || s.ApprenticeExperience > 0 || s.AdeptExperience > 0 || s.ExpertExperience > 0 || s.MasterExperience > 0)
