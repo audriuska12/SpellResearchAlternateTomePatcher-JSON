@@ -84,6 +84,18 @@ namespace SpellResearchSynthesizer.Classes
                     config.Mods[artifact.ArtifactESP].NewArtifacts.Add(artifact);
                 }
             }
+            JToken? newAlchEffects = data["newEffects"];
+            if (newAlchEffects != null) {
+                foreach (JToken newAlchEffect in newAlchEffects) {
+                    AlchemyEffectInfo? alchEffect = ParseAlchemyEffectJSON(state, newAlchEffect);
+                    if (alchEffect == null) continue;
+                    if (!config.Mods.ContainsKey(alchEffect.EffectESP))
+                    {
+                        config.Mods.Add(alchEffect.EffectESP, new ModSpellData());
+                    }
+                    config.Mods[alchEffect.EffectESP].NewAlchemyEffects.Add(alchEffect);
+                }
+            }
             return config;
         }
 
@@ -423,6 +435,81 @@ namespace SpellResearchSynthesizer.Classes
             {
                 artifact.ArtifactForm = artifactForm;
                 return artifact;
+            }
+        }
+
+        private static AlchemyEffectInfo? ParseAlchemyEffectJSON(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JToken newArtifact)
+        {
+            ArchetypeInfo archetypes = ArchetypeInfo.Instance;
+            string name = (string?)newArtifact["name"] ?? string.Empty;
+            if (name == string.Empty)
+            {
+                Console.WriteLine("Error reading alchemy effefct name");
+                return null;
+            }
+            string effectID = (string?)newArtifact["effectId"] ?? string.Empty;
+            if (effectID == string.Empty)
+            {
+                Console.WriteLine($"Error reading effect ID for {name}");
+                return null;
+            }
+            JArray? elements = (JArray?)newArtifact["elements"];
+            List<Archetype> foundElements = new();
+            if (elements != null)
+            {
+                foreach (string? element in elements.Select(t => t.ToString()))
+                {
+                    if (string.IsNullOrEmpty(element))
+                    {
+                        Console.WriteLine("Empty element found in list");
+                        continue;
+                    }
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Element, element);
+                    if (arch == null)
+                    {
+                        Console.WriteLine($"Element {element} not known");
+                        continue;
+                    }
+                    foundElements.Add(arch);
+                }
+            }
+
+            JArray? techniques = (JArray?)newArtifact["techniques"];
+            List<Archetype> foundTechniques = new();
+            if (techniques != null)
+            {
+                foreach (string? technique in techniques.Select(t => t.ToString()))
+                {
+                    if (string.IsNullOrEmpty(technique))
+                    {
+                        Console.WriteLine("Empty technique found in list");
+                        continue;
+                    }
+                    Archetype? arch = archetypes.GetArchetype(ArchetypeType.Technique, technique);
+                    if (arch == null)
+                    {
+                        Console.WriteLine($"Technique {technique} not known");
+                        continue;
+                    }
+                    foundTechniques.Add(arch);
+                }
+            }
+            AlchemyEffectInfo effect = new()
+            {
+                Name = name,
+                EffectID = effectID,
+                Elements = foundElements,
+                Techniques = foundTechniques,
+            };
+            IMagicEffectGetter? effectForm = CheckMagicEffectFormID(state, effect.EffectESP, effect.EffectFormID);
+            if (effectForm == null)
+            {
+                return null;
+            }
+            else
+            {
+                effect.EffectForm = effectForm;
+                return effect;
             }
         }
         private static SpellConfiguration ParseJSONFormat(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, JArray data)

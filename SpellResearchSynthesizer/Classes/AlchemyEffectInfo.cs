@@ -19,7 +19,6 @@ namespace SpellResearchSynthesizer.Classes
         public string EffectFormID => EffectForm == null ? string.IsNullOrEmpty(EffectID) ? "" : EffectID.Split('|')[2] : EffectForm.FormKey.ID.ToString("X6").ToLower();
         [JsonProperty("effectId")]
         public string JsonEffectID => $"__formData|{EffectESP}|0x{EffectFormID}";
-        public List<Archetype> Targeting { get; set; } = new List<Archetype>();
         [JsonProperty("elements", ItemConverterType = typeof(Archetype.Converter))]
         public List<Archetype> Elements { get; set; } = new List<Archetype>();
         [JsonProperty("techniques", ItemConverterType = typeof(Archetype.Converter))]
