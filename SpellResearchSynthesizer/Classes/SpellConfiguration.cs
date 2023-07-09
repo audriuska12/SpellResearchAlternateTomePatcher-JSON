@@ -14,7 +14,7 @@ namespace SpellResearchSynthesizer.Classes
 {
     public class SpellConfiguration
     {
-        public Dictionary<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> Mods = new();
+        public Dictionary<string, ModSpellData> Mods = new();
 
         public static SpellConfiguration FromJson(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf)
         {
@@ -49,7 +49,7 @@ namespace SpellResearchSynthesizer.Classes
 
                     if (!config.Mods.ContainsKey(spell.SpellESP))
                     {
-                        config.Mods.Add(spell.SpellESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                        config.Mods.Add(spell.SpellESP, new ModSpellData());
                     }
                     config.Mods[spell.SpellESP].NewSpells.Add(spell);
                 }
@@ -64,7 +64,7 @@ namespace SpellResearchSynthesizer.Classes
 
                     if (!config.Mods.ContainsKey(spell.SpellESP))
                     {
-                        config.Mods.Add(spell.SpellESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                        config.Mods.Add(spell.SpellESP, new ModSpellData());
                     }
                     config.Mods[spell.SpellESP].RemovedSpells.Add(spell);
                 }
@@ -79,7 +79,7 @@ namespace SpellResearchSynthesizer.Classes
 
                     if (!config.Mods.ContainsKey(artifact.ArtifactESP))
                     {
-                        config.Mods.Add(artifact.ArtifactESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                        config.Mods.Add(artifact.ArtifactESP, new ModSpellData());
                     }
                     config.Mods[artifact.ArtifactESP].NewArtifacts.Add(artifact);
                 }
@@ -89,7 +89,7 @@ namespace SpellResearchSynthesizer.Classes
 
         private void ClearDuplicateArchetypes()
         {
-            foreach (KeyValuePair<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> m in Mods)
+            foreach (KeyValuePair<string, ModSpellData> m in Mods)
             {
                 foreach (SpellInfo spell in m.Value.NewSpells)
                 {
@@ -435,7 +435,7 @@ namespace SpellResearchSynthesizer.Classes
                 if (spell == null) continue;
                 if (!config.Mods.ContainsKey(spell.SpellESP))
                 {
-                    config.Mods.Add(spell.SpellESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                    config.Mods.Add(spell.SpellESP, new ModSpellData());
                 }
                 config.Mods[spell.SpellESP].NewSpells.Add(spell);
             }
@@ -621,12 +621,15 @@ namespace SpellResearchSynthesizer.Classes
         private static readonly Regex rArtifactEquippableAll = new("^.*_SR_ListEquippableAll(?<equippable>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex rArtifactEquippableArtifact = new("^.*_SR_ListEquippableArtifacts(?<equippableArtifact>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex rArtifactEquippableText = new("^.*_SR_ListEquippableTexts(?<equippableText>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex rAlchemicalEffectElement = new("^.*_SR_ListAlchEffectsElement(?<element>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex rAlchemicalEffectTechnique = new("^.*_SR_ListAlchEffectsTechnique(?<technique>[A-Za-z]+).*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         public static SpellConfiguration FromPsc(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellconf)
         {
             ArchetypeInfo archetypes = ArchetypeInfo.Instance;
             SpellConfiguration config = new();
             SpellInfo? spellInfo = null;
             ArtifactInfo? artifactInfo = null;
+            AlchemyEffectInfo? effectInfo = null;
             int nestLevel = 0;
             int spellIndent = 0;
             foreach (string line in spellconf.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries & StringSplitOptions.TrimEntries))
@@ -645,7 +648,7 @@ namespace SpellResearchSynthesizer.Classes
 
                             if (!config.Mods.ContainsKey(spellInfo.SpellESP))
                             {
-                                config.Mods.Add(spellInfo.SpellESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                                config.Mods.Add(spellInfo.SpellESP, new ModSpellData());
                             }
                             config.Mods[spellInfo.SpellESP].NewSpells.Add(spellInfo);
                         }
@@ -654,11 +657,20 @@ namespace SpellResearchSynthesizer.Classes
                         {
                             if (!config.Mods.ContainsKey(artifactInfo.ArtifactESP))
                             {
-                                config.Mods.Add(artifactInfo.ArtifactESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                                config.Mods.Add(artifactInfo.ArtifactESP, new ModSpellData());
                             }
                             config.Mods[artifactInfo.ArtifactESP].NewArtifacts.Add(artifactInfo);
                         }
                         artifactInfo = null;
+                        if (effectInfo?.EffectForm != null)
+                        {
+                            if (!config.Mods.ContainsKey(effectInfo.EffectESP))
+                            {
+                                config.Mods.Add(effectInfo.EffectESP, new ModSpellData());
+                            }
+                            config.Mods[effectInfo.EffectESP].NewAlchemyEffects.Add(effectInfo);
+                        }
+                        effectInfo = null;
                     }
                 }
                 if (line.Contains("TempSpell", StringComparison.OrdinalIgnoreCase) && line.Contains("GetFormFromFile", StringComparison.OrdinalIgnoreCase))
@@ -716,6 +728,23 @@ namespace SpellResearchSynthesizer.Classes
                         spellInfo.ScrollID = null;
                     }
                     spellInfo.ScrollForm = scroll;
+                }
+                else if (line.Contains("TempEffect", StringComparison.OrdinalIgnoreCase) && line.Contains("GetFormFromFile", StringComparison.OrdinalIgnoreCase))
+                {
+                    spellIndent = nestLevel;
+                    MatchCollection matches = rx.Matches(line);
+                    effectInfo = new();
+                    string fid = matches.First().Groups["fid"].Value.Trim();
+                    string esp = matches.First().Groups["esp"].Value.Trim();
+                    effectInfo.EffectID = string.Format("__formData|{0}|{1}", esp, fid);
+                    IMagicEffectGetter? effectForm = CheckMagicEffectFormID(state, effectInfo.EffectESP, effectInfo.EffectFormID);
+                    if (effectForm?.Name?.String == null)
+                    {
+                        effectInfo = null;
+                        continue;
+                    }
+                    effectInfo.EffectForm = effectForm;
+                    effectInfo.Name = effectForm.Name.String;
                 }
                 else if (line.Contains("RemoveAddedForm", StringComparison.OrdinalIgnoreCase))
                 {
@@ -909,6 +938,34 @@ namespace SpellResearchSynthesizer.Classes
                     }
 
                 }
+                else if (effectInfo != null)
+                {
+                    MatchCollection mTechnique = rAlchemicalEffectTechnique.Matches(line);
+                    MatchCollection mElement = rAlchemicalEffectElement.Matches(line);
+
+                    if (mTechnique.Count > 0)
+                    {
+                        string match = mTechnique.First().Groups["technique"].Value.Trim();
+                        Archetype? technique = archetypes.GetArchetype(ArchetypeType.Technique, match);
+                        if (technique == null)
+                        {
+                            Console.WriteLine($"Technique {match} not found");
+                            continue;
+                        }
+                        effectInfo.Techniques.Add(technique);
+                    }
+                    else if (mElement.Count > 0)
+                    {
+                        string match = mElement.First().Groups["element"].Value.Trim();
+                        Archetype? element = archetypes.GetArchetype(ArchetypeType.Element, match);
+                        if (element == null)
+                        {
+                            Console.WriteLine($"Element {match} not found");
+                            continue;
+                        }
+                        effectInfo.Elements.Add(element);
+                    }
+                }
             }
             config.ClearDuplicateArchetypes();
             return config;
@@ -921,7 +978,8 @@ namespace SpellResearchSynthesizer.Classes
             {
                 mod = state.LoadOrder[spellESP].Mod;
             }
-            catch (MissingModException) {
+            catch (MissingModException)
+            {
                 Console.WriteLine($"Mod {spellESP} not found in load order.");
                 mod = null;
             }
@@ -1064,11 +1122,51 @@ namespace SpellResearchSynthesizer.Classes
             }
         }
 
+        private static IMagicEffectGetter? CheckMagicEffectFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string effectESP, string effectFormID)
+        {
+            ISkyrimModGetter? mod;
+            try
+            {
+                mod = state.LoadOrder[effectESP].Mod;
+            }
+            catch (MissingModException)
+            {
+                Console.WriteLine($"Mod {effectESP} not found in load order.");
+                mod = null;
+            }
+            if (mod == null) return null;
+            Console.WriteLine($"Resolving effect ID {effectFormID} from {effectESP}");
+            if (effectFormID.Length >= 8)
+            {
+                effectFormID = effectFormID[(effectFormID.Length - 6)..].ToLower();
+            }
+            else
+            {
+                effectFormID = Convert.ToInt32(effectFormID).ToString("X6").ToLower();
+            }
+            IMagicEffectGetter? effect = mod.MagicEffects.FirstOrDefault(s => s.FormKey.ID.ToString("X6").ToLower() == effectFormID);
+            if (effect == null)
+            {
+                if (mod.MasterReferences.Any())
+                {
+                    IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
+                    Console.WriteLine($"Trying master {master.Master.FileName}");
+                    return CheckMagicEffectFormID(state, master.Master.FileName, int.Parse(effectFormID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0'));
+                }
+                Console.WriteLine($"Couldn't resolve effect ID {effectFormID} from {effectESP}");
+                return null;
+            }
+            else
+            {
+                return effect;
+            }
+        }
+
         internal bool Validate(out ValidationResults validationResults)
         {
             validationResults = new();
             bool valid = true;
-            foreach (KeyValuePair<string, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts)> modRecord in Mods)
+            foreach (KeyValuePair<string, ModSpellData> modRecord in Mods)
             {
                 foreach (IGrouping<string, SpellInfo> g in modRecord.Value.NewSpells.GroupBy(s => $"{s.SpellESP}|0x{s.SpellFormID}").Where(g => !string.IsNullOrEmpty(g.Key) && g.Count() > 1))
                 {

@@ -11,13 +11,19 @@ namespace SpellResearchSynthesizer.Classes
         public string Name { get; set; } = string.Empty;
         public Archetype? Tier { get; set; } = null;
         [JsonProperty("tier")]
+#pragma warning disable IDE0051 // Remove unused private members
         private string TierJson => Tier?.Name.ToLower() ?? "";
+#pragma warning restore IDE0051 // Remove unused private members
         public Archetype? School { get; set; } = null;
         [JsonProperty("school")]
+#pragma warning disable IDE0051 // Remove unused private members
         private string SchoolJson => School?.Name.ToLower() ?? "";
+#pragma warning restore IDE0051 // Remove unused private members
         public Archetype? CastingType { get; set; }
         [JsonProperty("castingType")]
+#pragma warning disable IDE0051 // Remove unused private members
         private string CastingTypeJson => CastingType?.Name.ToLower() ?? "";
+#pragma warning restore IDE0051 // Remove unused private members
         [JsonProperty("targeting", ItemConverterType = typeof(Archetype.Converter))]
         public List<Archetype> Targeting { get; set; } = new List<Archetype>();
         [JsonProperty("elements", ItemConverterType = typeof(Archetype.Converter))]

@@ -176,15 +176,10 @@ namespace SpellResearchSynthesizer
             if (!File.Exists(extraSettingsPath)) throw new ArgumentException($"Archetype display settings missing! {extraSettingsPath}");
             string configText = File.ReadAllText(extraSettingsPath);
             ArchetypeVisualInfo archConfig = LoadArchetypeVisualInfo(configText);
-            JToken? researchDataLists = LoadResearchDataLists(configText);
-            if (researchDataLists == null)
-            {
-                Console.WriteLine("Error reading data lists");
-                return;
-            }
             Dictionary<string, List<string>> mods = new();
             string generatedPatchDirectory = Path.Combine(state.DataFolderPath, @"SKSE\Plugins\SpellResearchSynthesizer\GeneratedPatches");
-            if (settings.Value.ConvertPSCToJson) {
+            if (settings.Value.ConvertPSCToJson)
+            {
                 Console.WriteLine($"Creating directory {generatedPatchDirectory}...");
                 Console.WriteLine(Directory.CreateDirectory(generatedPatchDirectory));
             }
@@ -253,7 +248,7 @@ namespace SpellResearchSynthesizer
                             continue;
                         }
                         string spellconf = File.ReadAllText(pscPath);
-                        patch = ((mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf)));
+                        patch = (mod.Key.FileName, SpellConfiguration.FromPsc(state, spellconf));
                         if (settings.Value.ConvertPSCToJson)
                         {
                             File.WriteAllText(Path.Combine(generatedPatchDirectory, $"{mod.Key.FileName.NameWithoutExtension}.json"), JsonConvert.SerializeObject(new OutputTemplate
@@ -261,7 +256,8 @@ namespace SpellResearchSynthesizer
                                 NewSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
                                 RemovedSpells = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
                                 NewArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewArtifacts).ToList(),
-                                RemovedArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedArtifacts).ToList()
+                                RemovedArtifacts = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.RemovedArtifacts).ToList(),
+                                NewEffects = patch.Value.Spells.Mods.SelectMany(mod => mod.Value.NewAlchemyEffects).ToList(),
                             }, Formatting.Indented));
                         }
                     }
@@ -282,11 +278,12 @@ namespace SpellResearchSynthesizer
             SpellConfiguration cleanedOutput = CleanOutput(output);
             OutputTemplate jsonOutput = new()
             {
-                ResearchDataLists = researchDataLists,
+                ResearchDataLists = ResearchDataLists.Instance,
                 NewSpells = cleanedOutput.Mods.SelectMany(mod => mod.Value.NewSpells).ToList(),
                 RemovedSpells = cleanedOutput.Mods.SelectMany(mod => mod.Value.RemovedSpells).ToList(),
                 NewArtifacts = cleanedOutput.Mods.SelectMany(mod => mod.Value.NewArtifacts).ToList(),
-                RemovedArtifacts = cleanedOutput.Mods.SelectMany(mod => mod.Value.RemovedArtifacts).ToList()
+                RemovedArtifacts = cleanedOutput.Mods.SelectMany(mod => mod.Value.RemovedArtifacts).ToList(),
+                NewEffects = cleanedOutput.Mods.SelectMany(mod => mod.Value.NewAlchemyEffects).ToList(),
             };
             string path = state.DataFolderPath + @"\SKSE\Plugins\SpellResearchSynthesizer";
             Directory.CreateDirectory(path);
@@ -317,102 +314,116 @@ namespace SpellResearchSynthesizer
             {
                 Console.WriteLine("Generating FLM .ini...");
                 FormListContainer flmLists = new();
-                foreach ((List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts) in cleanedOutput.Mods.Values)
+                foreach (ModSpellData msd in cleanedOutput.Mods.Values)
                 {
-                    foreach (SpellInfo spell in NewSpells)
+                    foreach (SpellInfo spell in msd.NewSpells)
                     {
                         if (spell.SpellForm == null) throw new Exception("Form ID error");
                         if (spell.Tier == null) throw new Exception("Spell has no tier!");
                         if (spell.School == null) throw new Exception("Spell has no school!");
                         if (spell.CastingType == null) throw new Exception("Spell has no casting type!");
                         string spellFID = $"0x{spell.SpellForm.FormKey.ID:X6}~{spell.SpellESP}";
-                        string flAllSpellsTier = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["allSpells"]?.ToString());
+                        string flAllSpellsTier = FormatFormID(ResearchDataLists.Instance.SpellTiers[spell.Tier.Name.ToLower()]?["allSpells"]?.ToString());
                         flmLists.Add(flAllSpellsTier, spellFID);
-                        string flSchool = FormatFormID(researchDataLists["spellSchools"]?[spell.School.Name.ToLower()]?.ToString());
+                        string flSchool = FormatFormID(ResearchDataLists.Instance.SpellSchools[spell.School.Name.ToLower()]?.ToString());
                         flmLists.Add(flSchool, spellFID);
-                        string flCastingType = FormatFormID(researchDataLists["spellCastingTypes"]?[spell.CastingType.Name.ToLower()]?.ToString());
+                        string flCastingType = FormatFormID(ResearchDataLists.Instance.SpellCastingTypes[spell.CastingType.Name.ToLower()]?.ToString());
                         flmLists.Add(flCastingType, spellFID);
                         foreach (Archetype targeting in spell.Targeting)
                         {
-                            string flTargeting = FormatFormID(researchDataLists["spellTargeting"]?[targeting.Name.ToLower()]?.ToString());
+                            string flTargeting = FormatFormID(ResearchDataLists.Instance.SpellTargetingTypes[targeting.Name.ToLower()]?.ToString());
                             flmLists.Add(flTargeting, spellFID);
                         }
                         foreach (Archetype element in spell.Elements)
                         {
-                            string flElement = FormatFormID(researchDataLists["spellElements"]?[element.Name.ToLower()]?.ToString());
+                            string flElement = FormatFormID(ResearchDataLists.Instance.SpellElements[element.Name.ToLower()]?.ToString());
                             flmLists.Add(flElement, spellFID);
                         }
                         foreach (Archetype technique in spell.Techniques)
                         {
-                            string flTechnique = FormatFormID(researchDataLists["spellTechniques"]?[technique.Name.ToLower()]?.ToString());
+                            string flTechnique = FormatFormID(ResearchDataLists.Instance.SpellTechniques[technique.Name.ToLower()]?.ToString());
                             flmLists.Add(flTechnique, spellFID);
                         }
                         if (spell.ScrollForm != null)
                         {
                             string scrollFID = $"0x{spell.ScrollForm.FormKey.ID:X6}~{spell.ScrollESP}";
-                            string flScrolls = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["scrolls"]?.ToString());
+                            string flScrolls = FormatFormID(ResearchDataLists.Instance.SpellTiers[spell.Tier.Name.ToLower()]?["scrolls"]?.ToString());
                             flmLists.Add(flScrolls, scrollFID);
-                            string flScrollSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["scrollSpells"]?.ToString());
+                            string flScrollSpells = FormatFormID(ResearchDataLists.Instance.SpellTiers[spell.Tier.Name.ToLower()]?["scrollSpells"]?.ToString());
                             flmLists.Add(flScrollSpells, spellFID);
                         }
                         if (spell.TomeForm != null)
                         {
                             string tomeFID = $"0x{spell.TomeForm.FormKey.ID:X6}~{spell.TomeESP}";
-                            string flTomes = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["tomes"]?.ToString());
+                            string flTomes = FormatFormID(ResearchDataLists.Instance.SpellTiers[spell.Tier.Name.ToLower()]?["tomes"]?.ToString());
                             flmLists.Add(flTomes, tomeFID);
-                            string flTomeSpells = FormatFormID(researchDataLists["spellTiers"]?[spell.Tier.Name.ToLower()]?["tomeSpells"]?.ToString());
+                            string flTomeSpells = FormatFormID(ResearchDataLists.Instance.SpellTiers[spell.Tier.Name.ToLower()]?["tomeSpells"]?.ToString());
                             flmLists.Add(flTomeSpells, spellFID);
                         }
                         if (!spell.Enabled)
                         {
-                            string flUndiscoverable = FormatFormID(researchDataLists["other"]?["undiscoverable"]?.ToString());
+                            string flUndiscoverable = FormatFormID(ResearchDataLists.Instance.Other["undiscoverable"]?.ToString());
                             flmLists.Add(flUndiscoverable, spellFID);
                         }
                     }
-                    foreach (ArtifactInfo artifact in NewArtifacts)
+                    foreach (ArtifactInfo artifact in msd.NewArtifacts)
                     {
                         string artifactFID = FormatFormID(artifact.ArtifactID);
-                        string flTier = FormatFormID(researchDataLists["artifactTiers"]?[artifact.Tier.ToString()]?.ToString());
+                        string flTier = FormatFormID(ResearchDataLists.Instance.ArtifactTiers[artifact.Tier.ToString()]?.ToString());
                         flmLists.Add(flTier, artifactFID);
                         foreach (Archetype school in artifact.Schools)
                         {
-                            string flSchool = FormatFormID(researchDataLists["artifactSchools"]?[school.Name.ToLower()]?.ToString());
+                            string flSchool = FormatFormID(ResearchDataLists.Instance.ArtifactSchools?[school.Name.ToLower()]?.ToString());
                             flmLists.Add(flSchool, artifactFID);
                         }
                         foreach (Archetype casting in artifact.CastingTypes)
                         {
-                            string flCastingType = FormatFormID(researchDataLists["artifactCastingTypes"]?[casting.Name.ToLower()]?.ToString());
+                            string flCastingType = FormatFormID(ResearchDataLists.Instance.ArtifactCastingTypes[casting.Name.ToLower()]?.ToString());
                             flmLists.Add(flCastingType, artifactFID);
                         }
                         foreach (Archetype targeting in artifact.Targeting)
                         {
-                            string flTargeting = FormatFormID(researchDataLists["artifactTargeting"]?[targeting]?.ToString());
+                            string flTargeting = FormatFormID(ResearchDataLists.Instance.ArtifactTargetingTypes[targeting.Name.ToLower()]?.ToString());
                             flmLists.Add(flTargeting, artifactFID);
                         }
                         foreach (Archetype element in artifact.Elements)
                         {
-                            string flElement = FormatFormID(researchDataLists["artifactElements"]?[element.Name.ToLower()]?.ToString());
+                            string flElement = FormatFormID(ResearchDataLists.Instance.ArtifactElements?[element.Name.ToLower()]?.ToString());
                             flmLists.Add(flElement, artifactFID);
                         }
                         foreach (Archetype technique in artifact.Techniques)
                         {
-                            string flTechnique = FormatFormID(researchDataLists["artifactTechniques"]?[technique.Name.ToLower()]?.ToString());
+                            string flTechnique = FormatFormID(ResearchDataLists.Instance.ArtifactTechniques[technique.Name.ToLower()]?.ToString());
                             flmLists.Add(flTechnique, artifactFID);
                         }
                         if (artifact.Equippable)
                         {
-                            string flEquippableAll = FormatFormID(researchDataLists["artifactOther"]?["equippableAll"]?.ToString());
+                            string flEquippableAll = FormatFormID(ResearchDataLists.Instance.ArtifactOther["equippableAll"]?.ToString());
                             flmLists.Add(flEquippableAll, artifactFID);
                         }
                         if (artifact.EquippableArtifact)
                         {
-                            string flEquppableArtifact = FormatFormID(researchDataLists["artifactOther"]?["equippableArtifacts"]?.ToString());
+                            string flEquppableArtifact = FormatFormID(ResearchDataLists.Instance.ArtifactOther["equippableArtifacts"]?.ToString());
                             flmLists.Add(flEquppableArtifact, artifactFID);
                         }
                         if (artifact.EquippableText)
                         {
-                            string flEquippableText = FormatFormID(researchDataLists["artifactOther"]?["equippableText"]?.ToString());
+                            string flEquippableText = FormatFormID(ResearchDataLists.Instance.ArtifactOther["equippableTexts"]?.ToString());
                             flmLists.Add(flEquippableText, artifactFID);
+                        }
+                    }
+                    foreach (AlchemyEffectInfo effect in msd.NewAlchemyEffects)
+                    {
+                        string alchEffectFID = FormatFormID(effect.EffectID);
+                        foreach (Archetype element in effect.Elements)
+                        {
+                            string flElement = FormatFormID(ResearchDataLists.Instance.AlchemyElements[element.Name.ToLower()]?.ToString());
+                            flmLists.Add(flElement, alchEffectFID);
+                        }
+                        foreach (Archetype technique in effect.Techniques)
+                        {
+                            string flTechnique = FormatFormID(ResearchDataLists.Instance.AlchemyTechniques[technique.Name.ToLower()]?.ToString());
+                            flmLists.Add(flTechnique, alchEffectFID);
                         }
                     }
                 }
@@ -428,10 +439,7 @@ namespace SpellResearchSynthesizer
         private static INpcGetter? PlayerCachedBase = null;
         private static INpcGetter GetPlayerBase(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
-            if (PlayerCachedBase == null)
-            {
-                PlayerCachedBase = state.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>().First(npc => npc.FormKey.ToString() == "000007:Skyrim.esm");
-            }
+            PlayerCachedBase ??= state.LoadOrder.PriorityOrder.WinningOverrides<INpcGetter>().First(npc => npc.FormKey.ToString() == "000007:Skyrim.esm");
             return PlayerCachedBase;
         }
 
@@ -460,11 +468,6 @@ namespace SpellResearchSynthesizer
         {
             ArchetypeVisualInfo archconfig = ArchetypeVisualInfo.From(configText);
             return archconfig;
-        }
-
-        private static JToken? LoadResearchDataLists(string configText)
-        {
-            return JObject.Parse(configText)["researchDataLists"];
         }
 
         private static List<(string mod, string json)> GetJsonHardlinkedMods()
@@ -513,7 +516,7 @@ namespace SpellResearchSynthesizer
             SpellConfiguration result = new();
             foreach ((_, SpellConfiguration spellConfiguration) in output)
             {
-                foreach ((string mod, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts) forms) in spellConfiguration.Mods)
+                foreach ((string mod, ModSpellData forms) in spellConfiguration.Mods)
                 {
                     foreach (SpellInfo spell in forms.RemovedSpells)
                     {
@@ -526,7 +529,7 @@ namespace SpellResearchSynthesizer
                         if (!result.Mods.ContainsKey(spell.SpellESP))
                         {
                             Console.WriteLine($"Adding mod {spell.SpellESP}");
-                            result.Mods.Add(spell.SpellESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                            result.Mods.Add(spell.SpellESP, new ModSpellData());
                         }
                         SpellInfo? oldEntry = result.Mods[spell.SpellESP].NewSpells.FirstOrDefault(x => x.SpellFormID == spell.SpellFormID);
                         if (oldEntry != null)
@@ -561,7 +564,7 @@ namespace SpellResearchSynthesizer
                     {
                         if (!result.Mods.ContainsKey(artifact.ArtifactESP))
                         {
-                            result.Mods.Add(artifact.ArtifactESP, (new List<SpellInfo>(), new List<SpellInfo>(), new List<ArtifactInfo>(), new List<ArtifactInfo>()));
+                            result.Mods.Add(artifact.ArtifactESP, new ModSpellData());
                         }
                         ArtifactInfo? oldEntry = result.Mods[artifact.ArtifactESP].NewArtifacts.FirstOrDefault(x => x.ArtifactID.ToLower() == artifact.ArtifactID.ToLower());
                         if (oldEntry != null)
@@ -575,9 +578,20 @@ namespace SpellResearchSynthesizer
                     {
                         result.Mods[artifact.ArtifactESP].RemovedArtifacts.Add(artifact);
                     }
+                    foreach (AlchemyEffectInfo effect in forms.NewAlchemyEffects)
+                    {
+                        if (!result.Mods.ContainsKey(effect.EffectESP))
+                        {
+                            result.Mods.Add(effect.EffectESP, new ModSpellData());
+                        }
+                        if (!result.Mods[effect.EffectESP].NewAlchemyEffects.Contains(effect))
+                        {
+                            result.Mods[effect.EffectESP].NewAlchemyEffects.Add(effect);
+                        }
+                    }
                 }
             }
-            foreach ((string mod, (List<SpellInfo> NewSpells, List<SpellInfo> RemovedSpells, List<ArtifactInfo> NewArtifacts, List<ArtifactInfo> RemovedArtifacts) forms) in result.Mods)
+            foreach ((string mod, ModSpellData forms) in result.Mods)
             {
                 List<SpellInfo> HardRemoved = forms.NewSpells.Where(s => s.HardRemoved).ToList();
                 foreach (SpellInfo s in HardRemoved)
@@ -603,9 +617,9 @@ namespace SpellResearchSynthesizer
                 Console.WriteLine("No spells found");
                 return;
             }
-            foreach ((string modName, (List<SpellInfo> spells, _, _, _)) in spellInfo.Mods)
+            foreach ((string modName, ModSpellData msd) in spellInfo.Mods)
             {
-                foreach (SpellInfo spell in spells)
+                foreach (SpellInfo spell in msd.NewSpells)
                 {
                     if (spell.Tier == null) throw new Exception("Spell has no tier!");
                     if (spell.School == null) throw new Exception("Spell has no school!");

@@ -9,7 +9,7 @@ namespace SpellResearchSynthesizer.Classes
 {
     public class FormListContainer : IEnumerable<KeyValuePair<string, List<string>>>
     {
-        protected Dictionary<string, List<string>> _items = new Dictionary<string, List<string>>();
+        protected Dictionary<string, List<string>> _items = new();
 
         private List<string> this[string key]
         {
