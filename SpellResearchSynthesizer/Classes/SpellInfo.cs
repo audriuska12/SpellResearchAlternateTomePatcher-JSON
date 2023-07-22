@@ -37,9 +37,8 @@ namespace SpellResearchSynthesizer.Classes
 
         [JsonProperty("spellId")]
         public string JsonSpellID => $"__formData|{SpellESP}|0x{SpellFormID}";
-        private string? tomeID;
         public IBookGetter? TomeForm { get; set; }
-        public string? TomeID { get => tomeID?.PadLeft(6).ToLower(); set => tomeID = value?.PadLeft(6).ToLower(); }
+        public string? TomeID { get; set; }
         public string? TomeESP => TomeForm == null ? string.IsNullOrEmpty(TomeID) ? null : TomeID.Split('|')[1] : TomeForm.FormKey.ModKey.FileName.ToString().ToLower();
         public string? TomeFormID => TomeForm == null ? string.IsNullOrEmpty(TomeID) ? null : TomeID.Split('|')[2] : TomeForm.FormKey.ID.ToString("X6").ToLower();
 

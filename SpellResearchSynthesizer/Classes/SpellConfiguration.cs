@@ -85,8 +85,10 @@ namespace SpellResearchSynthesizer.Classes
                 }
             }
             JToken? newAlchEffects = data["newEffects"];
-            if (newAlchEffects != null) {
-                foreach (JToken newAlchEffect in newAlchEffects) {
+            if (newAlchEffects != null)
+            {
+                foreach (JToken newAlchEffect in newAlchEffects)
+                {
                     AlchemyEffectInfo? alchEffect = ParseAlchemyEffectJSON(state, newAlchEffect);
                     if (alchEffect == null) continue;
                     if (!config.Mods.ContainsKey(alchEffect.EffectESP))
@@ -254,7 +256,7 @@ namespace SpellResearchSynthesizer.Classes
                 Enabled = discoverable,
                 HardRemoved = hardRemoved
             };
-            ISpellGetter? spellForm = CheckSpellFormID(state, spell.SpellESP, spell.SpellFormID);
+            ISpellGetter? spellForm = CheckSpellFormID(state, spellID);
             if (spellForm == null)
             {
                 return null;
@@ -265,7 +267,7 @@ namespace SpellResearchSynthesizer.Classes
             }
             if (!string.IsNullOrEmpty(spell.TomeID))
             {
-                IBookGetter? tome = CheckTomeFormID(state, spell.TomeESP ?? "", spell.TomeFormID ?? "");
+                IBookGetter? tome = CheckTomeFormID(state, spell.TomeID);
                 if (tome == null)
                 {
                     return null;
@@ -274,7 +276,7 @@ namespace SpellResearchSynthesizer.Classes
             }
             if (!string.IsNullOrEmpty(spell.ScrollID))
             {
-                IScrollGetter? scroll = CheckScrollFormID(state, spell.ScrollESP ?? "", spell.ScrollFormID ?? "");
+                IScrollGetter? scroll = CheckScrollFormID(state, spell.ScrollID);
                 if (scroll == null)
                 {
                     return null;
@@ -658,7 +660,7 @@ namespace SpellResearchSynthesizer.Classes
                 TomeID = tomeID,
                 ScrollID = scrollID
             };
-            ISpellGetter? spellForm = CheckSpellFormID(state, spell.SpellESP, spell.SpellFormID);
+            ISpellGetter? spellForm = CheckSpellFormID(state, spell.SpellID);
             if (spellForm == null)
             {
                 return null;
@@ -669,7 +671,7 @@ namespace SpellResearchSynthesizer.Classes
             }
             if (!string.IsNullOrEmpty(spell.TomeID))
             {
-                IBookGetter? tome = CheckTomeFormID(state, spell.TomeESP ?? "", spell.TomeFormID ?? "");
+                IBookGetter? tome = CheckTomeFormID(state, spell.TomeID);
                 if (tome == null)
                 {
                     return null;
@@ -678,7 +680,7 @@ namespace SpellResearchSynthesizer.Classes
             }
             if (!string.IsNullOrEmpty(spell.ScrollID))
             {
-                IScrollGetter? scroll = CheckScrollFormID(state, spell.ScrollESP ?? "", spell.ScrollFormID ?? "");
+                IScrollGetter? scroll = CheckScrollFormID(state, spell.ScrollID);
                 if (scroll == null)
                 {
                     return null;
@@ -768,7 +770,7 @@ namespace SpellResearchSynthesizer.Classes
                     string fid = matches.First().Groups["fid"].Value.Trim();
                     string esp = matches.First().Groups["esp"].Value.Trim();
                     spellInfo.SpellID = string.Format("__formData|{0}|{1}", esp, fid);
-                    ISpellGetter? spellForm = CheckSpellFormID(state, spellInfo.SpellESP, spellInfo.SpellFormID);
+                    ISpellGetter? spellForm = CheckSpellFormID(state, spellInfo.SpellID);
                     if (spellForm?.Name?.String == null)
                     {
                         spellInfo = null;
@@ -809,7 +811,7 @@ namespace SpellResearchSynthesizer.Classes
                     string fid = matches.First().Groups["fid"].Value.Trim();
                     string esp = matches.First().Groups["esp"].Value.Trim();
                     spellInfo.ScrollID = string.Format("__formData|{0}|{1}", esp, fid);
-                    IScrollGetter? scroll = CheckScrollFormID(state, spellInfo.ScrollESP ?? "", spellInfo.ScrollFormID ?? "");
+                    IScrollGetter? scroll = CheckScrollFormID(state, spellInfo.ScrollID);
                     if (scroll == null)
                     {
                         spellInfo.ScrollID = null;
@@ -845,7 +847,7 @@ namespace SpellResearchSynthesizer.Classes
                     string esp = matches.First().Groups["esp"].Value.Trim();
 
                     spellInfo.TomeID = string.Format("__formData|{0}|{1}", esp, fid);
-                    IBookGetter? tome = CheckTomeFormID(state, spellInfo.TomeESP ?? "", spellInfo.TomeFormID ?? "");
+                    IBookGetter? tome = CheckTomeFormID(state, spellInfo.TomeID);
                     if (tome == null)
                     {
                         spellInfo.TomeID = null;
@@ -1058,121 +1060,172 @@ namespace SpellResearchSynthesizer.Classes
             return config;
         }
 
-        private static ISpellGetter? CheckSpellFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spellESP, string spellFormID)
+        private static ISpellGetter? CheckSpellFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string spell)
         {
+            string[] parts = spell.Split("|");
+            string formType = parts[0];
+            string spellMod = parts[1];
+            string spellID = parts[2];
             ISkyrimModGetter? mod;
             try
             {
-                mod = state.LoadOrder[spellESP].Mod;
+                mod = state.LoadOrder[spellMod].Mod;
             }
             catch (MissingModException)
             {
-                Console.WriteLine($"Mod {spellESP} not found in load order.");
+                Console.WriteLine($"Mod {spellMod} not found in load order.");
                 mod = null;
             }
             if (mod == null) return null;
-            Console.WriteLine($"Resolving spell ID {spellFormID} from {spellESP}");
-            if (spellFormID.Length >= 8)
+            Console.WriteLine($"Resolving spell ID {spellID} from {spellMod}");
+            ISpellGetter? spellForm = null;
+            if (formType == "__EditorID")
             {
-                spellFormID = spellFormID[(spellFormID.Length - 6)..].ToLower();
-            }
-            else
-            {
-                spellFormID = Convert.ToInt32(spellFormID).ToString("X6").ToLower();
-            }
-            ISpellGetter? spell = mod.Spells.FirstOrDefault(s => s.FormKey.ID.ToString("X6").ToLower() == spellFormID);
-            if (spell == null)
-            {
-                if (mod.MasterReferences.Any())
+                spellForm = mod.Spells.FirstOrDefault(s => s.EditorID == spellID);
+                if (spellForm == null)
                 {
-                    IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
-                    Console.WriteLine($"Trying master {master.Master.FileName}");
-                    return CheckSpellFormID(state, master.Master.FileName, int.Parse(spellFormID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0'));
+                    Console.WriteLine($"Couldn't resolve spell ID {spellID} from {spellMod}");
                 }
-                Console.WriteLine($"Couldn't resolve spell ID {spellFormID} from {spellESP}");
-                return null;
+                return spellForm;
             }
             else
             {
-                return spell;
+                if (spellID.Length >= 8)
+                {
+                    spellID = spellID[(spellID.Length - 6)..].ToLower();
+                }
+                else
+                {
+                    spellID = Convert.ToInt32(spellID).ToString("X6").ToLower();
+                }
+                spellForm = mod.Spells.FirstOrDefault(s => s.FormKey.ID.ToString("X6").ToLower() == spellID);
+                if (spell == null)
+                {
+                    if (mod.MasterReferences.Any())
+                    {
+                        IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
+                        Console.WriteLine($"Trying master {master.Master.FileName}");
+                        return CheckSpellFormID(state, $"{formType}|{spellMod}|{int.Parse(spellID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                    }
+                    Console.WriteLine($"Couldn't resolve spell ID {spellID} from {spellMod}");
+                    return null;
+                }
+                else
+                {
+                    return spellForm;
+                }
             }
         }
-        private static IBookGetter? CheckTomeFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string tomeESP, string tomeFormID)
+        private static IBookGetter? CheckTomeFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string tome)
         {
+            string[] parts = tome.Split("|");
+            string formType = parts[0];
+            string tomeMod = parts[1];
+            string tomeID = parts[2];
             ISkyrimModGetter? mod;
             try
             {
-                mod = state.LoadOrder[tomeESP].Mod;
+                mod = state.LoadOrder[tomeMod].Mod;
             }
             catch (MissingModException)
             {
-                Console.WriteLine($"Mod {tomeESP} not found in load order.");
+                Console.WriteLine($"Mod {tomeMod} not found in load order.");
                 mod = null;
             }
             if (mod == null) return null;
-            Console.WriteLine($"Resolving tome ID {tomeFormID} from {tomeESP}");
-            if (tomeFormID.Length >= 8)
+            Console.WriteLine($"Resolving tome ID {tomeID} from {tomeMod}");
+            IBookGetter? tomeForm = null;
+            if (formType == "__EditorID")
             {
-                tomeFormID = tomeFormID[(tomeFormID.Length - 6)..].ToLower();
-            }
-            else
-            {
-                tomeFormID = Convert.ToInt32(tomeFormID).ToString("X6").ToLower();
-            }
-            IBookGetter? tome = mod.Books.FirstOrDefault(b => b.FormKey.ID.ToString("X6").ToLower() == tomeFormID);
-            if (tome == null)
-            {
-                if (mod.MasterReferences.Any())
+                tomeForm = mod.Books.FirstOrDefault(s => s.EditorID == tomeID);
+                if (tomeForm == null)
                 {
-                    IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
-                    Console.WriteLine($"Trying master {master.Master.FileName}");
-                    return CheckTomeFormID(state, master.Master.FileName, int.Parse(tomeFormID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0'));
+                    Console.WriteLine($"Couldn't resolve tome ID {tomeID} from {tomeMod}");
                 }
-                Console.WriteLine($"Couldn't resolve tome ID {tomeFormID} from {tomeESP}");
-                return null;
+                return tomeForm;
             }
             else
             {
-                return tome;
+                if (tomeID.Length >= 8)
+                {
+                    tomeID = tomeID[(tomeID.Length - 6)..].ToLower();
+                }
+                else
+                {
+                    tomeID = Convert.ToInt32(tomeID).ToString("X6").ToLower();
+                }
+                tomeForm = mod.Books.FirstOrDefault(b => b.FormKey.ID.ToString("X6").ToLower() == tomeID);
+                if (tome == null)
+                {
+                    if (mod.MasterReferences.Any())
+                    {
+                        IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
+                        Console.WriteLine($"Trying master {master.Master.FileName}");
+                        return CheckTomeFormID(state, $"{formType}|{tomeMod}|{int.Parse(tomeID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                    }
+                    Console.WriteLine($"Couldn't resolve tome ID {tomeID} from {tomeMod}");
+                    return null;
+                }
+                else
+                {
+                    return tomeForm;
+                }
             }
         }
-        private static IScrollGetter? CheckScrollFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string scrollESP, string scrollFormID)
+        private static IScrollGetter? CheckScrollFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string scroll)
         {
+            string[] parts = scroll.Split("|");
+            string formType = parts[0];
+            string scrollMod = parts[1];
+            string scrollID = parts[2];
             ISkyrimModGetter? mod;
             try
             {
-                mod = state.LoadOrder[scrollESP].Mod;
+                mod = state.LoadOrder[scrollMod].Mod;
             }
             catch (MissingModException)
             {
-                Console.WriteLine($"Mod {scrollESP} not found in load order.");
+                Console.WriteLine($"Mod {scrollMod} not found in load order.");
                 mod = null;
             }
             if (mod == null) return null;
-            Console.WriteLine($"Resolving scroll ID {scrollFormID} from {scrollESP}");
-            if (scrollFormID.Length >= 8)
+            Console.WriteLine($"Resolving scroll ID {scrollID} from {scrollMod}");
+            IScrollGetter? scrollForm = null;
+            if (formType == "__EditorID")
             {
-                scrollFormID = scrollFormID[(scrollFormID.Length - 6)..].ToLower();
-            }
-            else
-            {
-                scrollFormID = Convert.ToInt32(scrollFormID).ToString("X6").ToLower();
-            }
-            IScrollGetter? scroll = mod.Scrolls.FirstOrDefault(s => s.FormKey.ID.ToString("X6").ToLower() == scrollFormID);
-            if (scroll == null)
-            {
-                if (mod.MasterReferences.Any())
+                scrollForm = mod.Scrolls.FirstOrDefault(s => s.EditorID == scrollID);
+                if (scrollForm == null)
                 {
-                    IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
-                    Console.WriteLine($"Trying master {master.Master.FileName}");
-                    return CheckScrollFormID(state, master.Master.FileName, int.Parse(scrollFormID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0'));
+                    Console.WriteLine($"Couldn't resolve scroll ID {scrollID} from {scrollMod}");
                 }
-                Console.WriteLine($"Couldn't resolve scroll ID {scrollFormID} from {scrollESP}");
-                return null;
+                return scrollForm;
             }
             else
             {
-                return scroll;
+                if (scrollID.Length >= 8)
+                {
+                    scrollID = scrollID[(scrollID.Length - 6)..].ToLower();
+                }
+                else
+                {
+                    scrollID = Convert.ToInt32(scrollID).ToString("X6").ToLower();
+                }
+                scrollForm = mod.Scrolls.FirstOrDefault(s => s.FormKey.ID.ToString("X6").ToLower() == scrollID);
+                if (scrollForm == null)
+                {
+                    if (mod.MasterReferences.Any())
+                    {
+                        IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
+                        Console.WriteLine($"Trying master {master.Master.FileName}");
+                        return CheckScrollFormID(state, $"{formType}|{scrollMod}|{int.Parse(scrollID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                    }
+                    Console.WriteLine($"Couldn't resolve scroll ID {scrollID} from {scrollMod}");
+                    return null;
+                }
+                else
+                {
+                    return scrollForm;
+                }
             }
         }
         private static IItemGetter? CheckArtifactFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string artifactESP, string artifactFormID)
