@@ -428,7 +428,7 @@ namespace SpellResearchSynthesizer.Classes
                 EquippableArtifact = equippableArtifact,
                 EquippableText = equippableText
             };
-            IItemGetter? artifactForm = CheckArtifactFormID(state, artifact.ArtifactESP, artifact.ArtifactFormID);
+            IItemGetter? artifactForm = CheckArtifactFormID(state, artifact.ArtifactID);
             if (artifactForm == null)
             {
                 return null;
@@ -787,7 +787,7 @@ namespace SpellResearchSynthesizer.Classes
                     string fid = matches.First().Groups["fid"].Value.Trim();
                     string esp = matches.First().Groups["esp"].Value.Trim();
                     artifactInfo.ArtifactID = string.Format("__formData|{0}|{1}", esp, fid);
-                    IItemGetter? artifactForm = CheckArtifactFormID(state, artifactInfo.ArtifactESP, artifactInfo.ArtifactFormID);
+                    IItemGetter? artifactForm = CheckArtifactFormID(state, artifactInfo.ArtifactID);
                     if (artifactForm is IIngredientGetter ingredient && ingredient.Name?.String != null)
                     {
                         artifactInfo.ArtifactForm = ingredient;
@@ -1105,7 +1105,7 @@ namespace SpellResearchSynthesizer.Classes
                     {
                         IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
                         Console.WriteLine($"Trying master {master.Master.FileName}");
-                        return CheckSpellFormID(state, $"{formType}|{spellMod}|{int.Parse(spellID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                        return CheckSpellFormID(state, $"{formType}|{master.Master.FileName}|{int.Parse(spellID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
                     }
                     Console.WriteLine($"Couldn't resolve spell ID {spellID} from {spellMod}");
                     return null;
@@ -1161,7 +1161,7 @@ namespace SpellResearchSynthesizer.Classes
                     {
                         IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
                         Console.WriteLine($"Trying master {master.Master.FileName}");
-                        return CheckTomeFormID(state, $"{formType}|{tomeMod}|{int.Parse(tomeID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                        return CheckTomeFormID(state, $"{formType}|{master.Master.FileName}|{int.Parse(tomeID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
                     }
                     Console.WriteLine($"Couldn't resolve tome ID {tomeID} from {tomeMod}");
                     return null;
@@ -1217,7 +1217,7 @@ namespace SpellResearchSynthesizer.Classes
                     {
                         IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
                         Console.WriteLine($"Trying master {master.Master.FileName}");
-                        return CheckScrollFormID(state, $"{formType}|{scrollMod}|{int.Parse(scrollID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
+                        return CheckScrollFormID(state, $"{formType}|{master.Master.FileName}|{int.Parse(scrollID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
                     }
                     Console.WriteLine($"Couldn't resolve scroll ID {scrollID} from {scrollMod}");
                     return null;
@@ -1228,37 +1228,51 @@ namespace SpellResearchSynthesizer.Classes
                 }
             }
         }
-        private static IItemGetter? CheckArtifactFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string artifactESP, string artifactFormID)
+        private static IItemGetter? CheckArtifactFormID(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string artifact)
         {
-            Console.WriteLine($"Resolving artifact ID {artifactFormID} from {artifactESP}");
-            ISkyrimModGetter? mod = state.LoadOrder[artifactESP].Mod;
+            string[] parts = artifact.Split("|");
+            string formType = parts[0];
+            string artifactMod = parts[1];
+            string artifactID = parts[2];
+            Console.WriteLine($"Resolving artifact ID {artifactID} from {artifactMod}");
+            ISkyrimModGetter? mod = state.LoadOrder[artifactMod].Mod;
             if (mod == null) return null;
-            if (artifactFormID.Length >= 8)
-            {
-                artifactFormID = artifactFormID[(artifactFormID.Length - 6)..].ToLower();
-            }
-            else
-            {
-                artifactFormID = Convert.ToInt32(artifactFormID).ToString("X6").ToLower();
-            }
             List<IItemGetter> allItems = mod.AlchemicalApparatuses.Select(x => (IItemGetter)x).ToList();
             allItems.AddRange(mod.Ingredients.Select(x => (IItemGetter)x).ToList());
             allItems.AddRange(mod.MiscItems.Select(x => (IItemGetter)x).ToList());
-            IItemGetter? artifact = allItems.FirstOrDefault(i => i.FormKey.ID.ToString("X6").ToLower() == artifactFormID);
-            if (artifact == null)
+            IItemGetter? artifactForm = null;
+            if (formType == "__EditorID")
+            {
+                artifactForm = allItems.FirstOrDefault(s => s.EditorID == artifactID);
+                if (artifactForm == null)
+                {
+                    Console.WriteLine($"Couldn't resolve artifact ID {artifactID} from {artifactMod}");
+                }
+                return artifactForm;
+            }
+            if (artifactID.Length >= 8)
+            {
+                artifactID = artifactID[(artifactID.Length - 6)..].ToLower();
+            }
+            else
+            {
+                artifactID = Convert.ToInt32(artifactID).ToString("X6").ToLower();
+            }
+            artifactForm = allItems.FirstOrDefault(i => i.FormKey.ID.ToString("X6").ToLower() == artifactID);
+            if (artifactForm == null)
             {
                 if (mod.MasterReferences.Any())
                 {
                     IMasterReferenceGetter? master = mod.MasterReferences[mod.MasterReferences.Count - 1];
                     Console.WriteLine($"Trying master {master.Master.FileName}");
-                    return CheckArtifactFormID(state, master.Master.FileName, int.Parse(artifactFormID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0'));
+                    return CheckArtifactFormID(state, $"{formType}|{master.Master.FileName}|{int.Parse(artifactID, System.Globalization.NumberStyles.HexNumber).ToString().PadLeft(6, '0')}");
                 }
-                Console.WriteLine($"Couldn't resolve artifact ID {artifactFormID} from {artifactESP}");
+                Console.WriteLine($"Couldn't resolve artifact ID {artifactID} from {artifactMod}");
                 return null;
             }
             else
             {
-                return artifact;
+                return artifactForm;
             }
         }
 
